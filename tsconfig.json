@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "typeRoots": ["node_modules/@types"],
+    "types": ["lodash"],
+      "lib": [
+          "decorators",
+          "dom",
+          "es2015",
+          "scripthost",
+          "es2015.collection"
+      ]
+  },
+  "typedocOptions": {
+      "entryPoints": ["src/index.ts", "src/connection.ts", "src/query-batch.ts", "src/query-set.ts"],
+      "out": "docs"
+  },
+  "include": ["./src/**/*.ts"]
+}

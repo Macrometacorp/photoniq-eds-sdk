@@ -1,24 +1,14 @@
-# Web Socket Driver for PhotonIQ EDS
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Getting Started</title>
+</head>
+<body>
+<script src="photoniq-eds-ws.js"></script>
+<script>
 
-JavaScript/TypeScript Driver for the PhotonIQ Event Delivery Service (EDS). Runs under Web Socket connection.
-
-
-## Create a bundle
-
-Development
-```shell
-npm run build
-```
-
-Release
-```shell
-npm run release
-```
-
-## Example
-
-```JavaScript
-let connection = PhotoniqEdsWs.connect({
+    let connection = PhotoniqEdsWs.connect({
     host: "nbapoc.photoniq.macrometa.io",
     customerId: "<your_customer_id>",
     apiKey: "<your_api_key>",
@@ -58,15 +48,6 @@ let connection = PhotoniqEdsWs.connect({
     })       
     .assemble(); 
 
-```
-
-## Docs
-
-Generated in [/docs](/docs) folder
-
-Build docs
-```bash
-typedoc
-```
-
-
+</script>
+</body>
+</html>
