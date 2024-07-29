@@ -7,8 +7,8 @@
  */
 
 import _ from 'lodash';
-import { Config, Connection, EDSEvent } from "./connection";
-
+import { Config, EDSEvent, Connection } from "./types";
+import { ConnectionManager } from "./connection-manager";
 
 /**
  * Establish connection to PhotonIQ EDS server.
@@ -16,8 +16,8 @@ import { Config, Connection, EDSEvent } from "./connection";
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export function connect(config: Config, globalListener: (type: EDSEvent) => void): Connection {
-    let connection = new Connection(config, globalListener);
+export function connect(config: Config, globalListener: (type: EDSEvent) => void): ConnectionManager {
+    let connection = new ConnectionManager(config, globalListener);
     connection.connect();
     return connection;
 }

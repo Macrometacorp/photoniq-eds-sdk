@@ -14,25 +14,19 @@ exports.QueryBatch = void 0;
  */
 class QueryBatch {
     /** @ignore */
-    constructor(retrieveList, retrieveAndSubscribeList, subscribeList, unsubscribeList, addCallbackToQueries, removeCallbacksForQuery, queriesToQuerySetsAndCallbacks, querySet, connection) {
+    constructor(querySet, connection, filtersState) {
         this.subscribeQueries = [];
         this.retrieveAndSubscribeQueries = [];
         this.retrieveQueries = [];
         this.unsubscribeQueries = [];
-        this.retrieveList = retrieveList;
-        this.retrieveAndSubscribeList = retrieveAndSubscribeList;
-        this.subscribeList = subscribeList;
-        this.unsubscribeList = unsubscribeList;
-        this.addCallbackToQueries = addCallbackToQueries;
-        this.removeCallbacksForQuery = removeCallbacksForQuery;
-        this.queriesToQuerySetsAndCallbacks = queriesToQuerySetsAndCallbacks;
         this.querySet = querySet;
         this.connection = connection;
+        this.filtersState = filtersState;
     }
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
-     * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
+     * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
     subscribe(query, listener, errorListener) {
@@ -46,7 +40,7 @@ class QueryBatch {
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
-     * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
+     * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
     retrieveAndSubscribe(query, listener, errorListener) {
@@ -60,7 +54,7 @@ class QueryBatch {
     /**
      * Retrieve query. Returns result as usual DB call.
      * @param query SQL query to be executed
-     * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
+     * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
     retrieve(query, listener, errorListener) {
@@ -83,10 +77,29 @@ class QueryBatch {
      * Assemble list of queries to batch request
      */
     assemble() {
-        this.retrieveList(this.retrieveQueries, this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
-        this.retrieveAndSubscribeList(this.retrieveAndSubscribeQueries, this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
-        this.subscribeList(this.subscribeQueries, this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
-        this.unsubscribeList(this.unsubscribeQueries, this.removeCallbacksForQuery, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
+        let filters = this.filtersState.addQueries(this.retrieveQueries, true, true, false, this.querySet);
+        let retrieveAndSubscribeFilters = this.filtersState.addQueries(this.retrieveAndSubscribeQueries, true, false, false, this.querySet);
+        this.joinFilters(filters, retrieveAndSubscribeFilters);
+        let subscribeFilters = this.filtersState.addQueries(this.subscribeQueries, false, false, false, this.querySet);
+        this.joinFilters(filters, subscribeFilters);
+        for (const filterToAdd of filters) {
+            this.connection.send(JSON.stringify(filterToAdd));
+        }
+        let unsubscribeFilter = this.filtersState.removeQueries(this.unsubscribeQueries, this.querySet);
+        if (unsubscribeFilter) {
+            this.connection.send(JSON.stringify(unsubscribeFilter));
+        }
+    }
+    joinFilters(target, source) {
+        for (const sourceFilter of source) {
+            let filter = target.find(f => this.filtersState.equalFiltersWithoutQueries(f, sourceFilter));
+            if (filter) {
+                filter.queries.push(...sourceFilter.queries);
+            }
+            else {
+                target.push(sourceFilter);
+            }
+        }
     }
 }
 exports.QueryBatch = QueryBatch;

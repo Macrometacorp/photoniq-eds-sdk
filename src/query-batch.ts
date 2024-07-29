@@ -6,78 +6,37 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 
-import { Connection } from "./connection";
 import { Query, QuerySet } from "./query-set";
+import { ConnectionManager } from "./connection-manager";
+import {FiltersState} from "./filters-state";
+import { Filter } from "./types";
 
 /**
  * @module QueryBatch
  * Joins all querues togather and sends as a batch
  */
 export class QueryBatch {
-
-    private readonly retrieveList: (queries: Query[],
-        addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-            queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-            queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void;
-    private readonly retrieveAndSubscribeList: (queries: Query[],
-        addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-            queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-            queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void;
-    private readonly subscribeList: (queries: Query[],
-        addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-            queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-            queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void;
-    private readonly unsubscribeList: (queries: string[], removeCallbacksForQuery: (
-            queries: string[], queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) => string[],
-            queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void;
-    private readonly addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-        queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) => string[];
-    private readonly removeCallbacksForQuery: (
-        queries: string[], queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) => string[]  ;  
-    private readonly queriesToQuerySetsAndCallbacks: Map<any,any>;
     private readonly querySet: QuerySet;
-    private readonly connection: Connection;
+    private readonly connection: ConnectionManager;
+    private readonly filtersState: FiltersState;
     private subscribeQueries: Query[] = [];
     private retrieveAndSubscribeQueries: Query[] = [];
     private retrieveQueries: Query[] = [];
     private unsubscribeQueries: string[] = [];
     
     /** @ignore */
-    constructor(retrieveList: (queries: Query[],
-                    addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-                        queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-                    queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void,
-                retrieveAndSubscribeList: (queries: Query[],
-                    addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-                        queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-                    queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void,
-                subscribeList: (queries: Query[],
-                    addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-                        queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-                    queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void,
-                unsubscribeList: (queries: string[],
-                    removeCallbacksForQuery: (queries: string[], queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) => string[],
-                    queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection) => void,
-                addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-                    queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) => string[],
-                removeCallbacksForQuery: (queries: string[], queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) => string[],  
-                queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet,
-                connection: Connection) {
-        this.retrieveList = retrieveList;
-        this.retrieveAndSubscribeList = retrieveAndSubscribeList;
-        this.subscribeList = subscribeList;
-        this.unsubscribeList = unsubscribeList;
-        this.addCallbackToQueries = addCallbackToQueries;
-        this.removeCallbacksForQuery = removeCallbacksForQuery;
-        this.queriesToQuerySetsAndCallbacks = queriesToQuerySetsAndCallbacks;
+    constructor(querySet: QuerySet,
+                connection: ConnectionManager,
+                filtersState: FiltersState) {
         this.querySet = querySet;
         this.connection = connection;
+        this.filtersState = filtersState;
     }
     
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
-     * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
+     * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
     public subscribe(query: string, listener: any, errorListener: any): QueryBatch {
@@ -92,7 +51,7 @@ export class QueryBatch {
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
-     * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
+     * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
     public retrieveAndSubscribe(query: string, listener: any, errorListener: any): QueryBatch {
@@ -107,7 +66,7 @@ export class QueryBatch {
     /**
      * Retrieve query. Returns result as usual DB call.
      * @param query SQL query to be executed
-     * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
+     * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
     public retrieve(query: string, listener: any, errorListener: any): QueryBatch {
@@ -132,11 +91,28 @@ export class QueryBatch {
      * Assemble list of queries to batch request
      */
     public assemble(): void {
-        this.retrieveList(this.retrieveQueries, this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
-        this.retrieveAndSubscribeList(this.retrieveAndSubscribeQueries, this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
-        this.subscribeList(this.subscribeQueries, this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
-        this.unsubscribeList(this.unsubscribeQueries, this.removeCallbacksForQuery, this.queriesToQuerySetsAndCallbacks, this.querySet, this.connection);
+        let filters = this.filtersState.addQueries(this.retrieveQueries, true, true, false, this.querySet);
+        let retrieveAndSubscribeFilters = this.filtersState.addQueries(this.retrieveAndSubscribeQueries, true, false, false, this.querySet);
+        this.joinFilters(filters, retrieveAndSubscribeFilters);
+        let subscribeFilters = this.filtersState.addQueries(this.subscribeQueries, false, false, false, this.querySet);
+        this.joinFilters(filters, subscribeFilters);
+        for (const filterToAdd of filters) {
+            this.connection.send(JSON.stringify(filterToAdd));
+        }
+        let unsubscribeFilter = this.filtersState.removeQueries(this.unsubscribeQueries, this.querySet);
+        if (unsubscribeFilter) {
+            this.connection.send(JSON.stringify(unsubscribeFilter));
+        }
+    }
+
+    private joinFilters(target: Filter[], source: Filter[]) {
+        for (const sourceFilter of source) {
+            let filter = target.find(f => this.filtersState.equalFiltersWithoutQueries(f, sourceFilter));
+            if (filter) {
+                filter.queries.push(...sourceFilter.queries);
+            } else {
+                target.push(sourceFilter);
+            }
+        }
     }
 }
-
-

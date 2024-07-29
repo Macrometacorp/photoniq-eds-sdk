@@ -5,11 +5,12 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-import { Config, Connection, EDSEvent } from "./connection";
+import { Config, EDSEvent } from "./types";
+import { ConnectionManager } from "./connection-manager";
 /**
  * Establish connection to PhotonIQ EDS server.
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export declare function connect(config: Config, globalListener: (type: EDSEvent) => void): Connection;
+export declare function connect(config: Config, globalListener: (type: EDSEvent) => void): ConnectionManager;

@@ -17,7 +17,7 @@
       ]
   },
   "typedocOptions": {
-      "entryPoints": ["src/index.ts", "src/connection.ts", "src/query-batch.ts", "src/query-set.ts"],
+      "entryPoints": ["src/index.ts", "src/types.ts", "src/ws/connection.ts", "src/query-batch.ts", "src/query-set.ts"],
       "out": "docs"
   },
   "include": ["./src/**/*.ts"]

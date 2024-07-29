@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Getting Started</title>
+</head>
+<body>
+<script src="photoniq-eds-ws.js"></script>
+<script>
+
+    let globalListener = function(event) {
+        if (event.type === "open") {
+            console.log('EDS connection established: ', event);
+
+            setTimeout(function () {
+                let qs = connection.querySet();
+                qs
+                    .batch()
+                    .subscribe("SELECT ssss FROM game_live WHERE _key='0012307019'", (event) => {
+                        console.log(`ssss event: `, event);
+                    })
+                    .subscribe("SELECT aaaa FROM game_live WHERE _key='0012307019'", (event) => {
+                        console.log(`aaaa event: `, event);
+
+                    }).assemble();
+            }, 100);
+
+        } else if (event.type === "connection-id") {
+            console.log("EDS assigned connection's ID: " + event.data);
+        } else if (event.type === "server-global-error") {
+            console.log(`EDS replied with an Error: `, event);
+        }else if (event.type === "server-query-error") {
+            console.log(`EDS replied with an Error for query '${event.query}': `, event);
+        } else if (event.type === "client-global-error") {
+            console.log(`Client global error: `, event);
+        } else if (event.type === "client-query-error") {
+            console.log(`Client error for query '${event.query}': `, event);
+        } else if (event.type === "close") {
+            console.log('EDS connection closed: ', event);
+            //console.log(`Connectiong.. `);
+            //connection.connect();
+        }
+    };
+
+    let second = false;
+    let connection = PhotoniqEdsWs.connect({
+    host: "nbapoc.photoniq.macrometa.io",
+    customerId: "nba_admin",
+    apiKey: "ptq_MV6VuirCMDz_Kyejc8NLmVFKeVx8XxhYWw3mCVKMP3v2p",
+    fabric: "dev_courtside",
+    }, globalListener);
+    
+
+
+    // default usage
+
+
+    /*qs.subscribe("SELECT aaaa FROM game_live WHERE _key='0012307019'", (event) => {
+        console.log(`aaaa event: `, event);
+    })*/
+
+    /*setTimeout(function () {
+        //connection.disconnect();
+
+        //if (!second && event.count === 2) {
+                second = true;
+                console.log('Second retrieveAndSubscribe');
+                qs2.retrieveAndSubscribe("SELECT ssss.aa, ssss.b FROM game_live WHERE _key='0012307019'", (event) => {
+                    console.log(`ssss222 event: `, event);
+                })
+        //}
+    }, 5000);*/
+
+
+</script>
+</body>
+</html>

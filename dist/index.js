@@ -8,7 +8,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.connect = void 0;
-const connection_1 = require("./connection");
+const connection_manager_1 = require("./connection-manager");
 /**
  * Establish connection to PhotonIQ EDS server.
  * @param config configuration for the connection
@@ -16,7 +16,7 @@ const connection_1 = require("./connection");
  * @module connection
  */
 function connect(config, globalListener) {
-    let connection = new connection_1.Connection(config, globalListener);
+    let connection = new connection_manager_1.ConnectionManager(config, globalListener);
     connection.connect();
     return connection;
 }

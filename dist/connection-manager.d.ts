@@ -5,22 +5,16 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-import { Config, EDSEvent } from "./types";
+import { Config, EDSEvent, Connection, ConnectionStatus, ConnectionProperties } from "./types";
 import { QuerySet } from "./query-set";
 /**
  * The main class manages connection and queries.
  */
-export declare class SwitchableConnection {
-    private config;
-    private ws;
-    private id;
-    private queriesToQuerySetsAndCallbacks;
-    private pingIntervalId;
-    private globalListener;
-    private waitingMessages;
-    private STUB_FILTER;
+export declare class ConnectionManager implements Connection {
+    private readonly config;
+    private readonly connection;
+    private readonly filtersState;
     constructor(config: Config, globalListener: (event: EDSEvent) => void);
-    reconnect(): void;
     /**
      * Connect to Web Socket server
      */
@@ -41,13 +35,11 @@ export declare class SwitchableConnection {
     /**
      * Get connection id
      */
-    getId(): number | undefined;
+    getId(): string | undefined;
     /**
      * Check weather it connected
      */
-    isConnected(): boolean;
-    private convertInitialData;
-    private handleGlobalListener;
-    private handleErrorListenerForMap;
-    private updatePingInterval;
+    status(): ConnectionStatus;
+    getProperty(name: string): string | undefined;
+    getProperties(): ConnectionProperties;
 }
