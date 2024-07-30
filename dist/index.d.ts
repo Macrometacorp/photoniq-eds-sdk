@@ -1,3 +1,10 @@
+/**
+ * Copyright (C) Macrometa, Inc - All Rights Reserved
+ *
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ * Written by Macrometa, Inc <product@macrometa.com>, May 2024
+ */
 import { Config, Connection, EDSEvent } from "./connection";
 /**
  * Establish connection to PhotonIQ EDS server.

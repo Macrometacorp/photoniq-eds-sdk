@@ -1,4 +1,11 @@
 "use strict";
+/**
+ * Copyright (C) Macrometa, Inc - All Rights Reserved
+ *
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ * Written by Macrometa, Inc <product@macrometa.com>, May 2024
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuerySet = void 0;
 const query_batch_1 = require("./query-batch");
