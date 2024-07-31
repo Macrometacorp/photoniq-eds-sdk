@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Copyright (C) Macrometa, Inc - All Rights Reserved
  *
@@ -5,58 +6,35 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-
-import { Config, Connection } from "./connection";
-import { QueryBatch } from "./query-batch";
-
-/**
- * @module QuerySet
- *
- * Manages queries as a set
- */
-
-/** @ignore */
-export type Query = {
-    query: string;
-    listener: any;
-    errorListener: any;
-};
-
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.QuerySet = void 0;
+const query_batch_1 = require("./query-batch");
 /**
  * Manages queries as a set
  */
-export class QuerySet {
-    private connection: Connection;
-    private queriesToQuerySetsAndCallbacks: Map<any,any>;
-
+class QuerySet {
     /** @ignore */
-    constructor(connection: Connection, queriesToQuerySetsAndCallbacks: Map<any,any>) {
+    constructor(connection, queriesToQuerySetsAndCallbacks) {
         this.connection = connection;
         this.queriesToQuerySetsAndCallbacks = queriesToQuerySetsAndCallbacks;
     }
-    
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
-    public subscribe(query: string, listener: any, errorListener: any): void {
+    subscribe(query, listener, errorListener) {
         this.subscribeList([{
-            query: query,
-            listener: listener,
-            errorListener: errorListener
-        }], this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this, this.connection);
+                query: query,
+                listener: listener,
+                errorListener: errorListener
+            }], this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this, this.connection);
     }
-    
-    private subscribeList(queries: Query[],
-        addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-            queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-            queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection): void {
-        let queriesToBeAdded: string[] = [];
+    subscribeList(queries, addCallbackToQueries, queriesToQuerySetsAndCallbacks, querySet, connection) {
+        let queriesToBeAdded = [];
         for (const query of queries) {
-            let toAdd: string[] = addCallbackToQueries([query.query], query.listener, query.errorListener, false, false,
-            queriesToQuerySetsAndCallbacks, querySet);
+            let toAdd = addCallbackToQueries([query.query], query.listener, query.errorListener, false, false, queriesToQuerySetsAndCallbacks, querySet);
             queriesToBeAdded.push(...toAdd);
         }
         if (queriesToBeAdded.length) {
@@ -64,32 +42,26 @@ export class QuerySet {
                 "action": "add",
                 "queries": queriesToBeAdded
             });
-            connection.send(msg);      
+            connection.send(msg);
         }
     }
-    
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
-    public retrieveAndSubscribe(query: string, listener: any, errorListener: any): void {
+    retrieveAndSubscribe(query, listener, errorListener) {
         this.retrieveAndSubscribeList([{
-            query: query,
-            listener: listener,
-            errorListener: errorListener
-        }], this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this, this.connection);
+                query: query,
+                listener: listener,
+                errorListener: errorListener
+            }], this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this, this.connection);
     }
-    
-    private retrieveAndSubscribeList(queries: Query[],
-        addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-            queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-            queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection): void {
-        let queriesToBeAdded: string[] = [];
+    retrieveAndSubscribeList(queries, addCallbackToQueries, queriesToQuerySetsAndCallbacks, querySet, connection) {
+        let queriesToBeAdded = [];
         for (const query of queries) {
-            let toAdd: string[] = addCallbackToQueries([query.query], query.listener, query.errorListener, false, true,
-                queriesToQuerySetsAndCallbacks, querySet);
+            let toAdd = addCallbackToQueries([query.query], query.listener, query.errorListener, false, true, queriesToQuerySetsAndCallbacks, querySet);
             queriesToBeAdded.push(...toAdd);
         }
         if (queriesToBeAdded.length) {
@@ -101,29 +73,23 @@ export class QuerySet {
             connection.send(msg);
         }
     }
-    
     /**
      * Retrieve query. Returns result as usual DB call.
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of Connection.EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
-    public retrieve(query: string, listener: any, errorListener: any): void {
+    retrieve(query, listener, errorListener) {
         this.retrieveList([{
-            query: query,
-            listener: listener,
-            errorListener: errorListener
-        }], this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this, this.connection);
+                query: query,
+                listener: listener,
+                errorListener: errorListener
+            }], this.addCallbackToQueries, this.queriesToQuerySetsAndCallbacks, this, this.connection);
     }
-    
-    private retrieveList(queries: Query[],
-        addCallbackToQueries: (queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-            queriesToQuerySetsAndCallbacks: Map<any, any>, querySet: QuerySet) => string[],
-            queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection): void {
-        let queriesToBeAdded: string[] = [];
+    retrieveList(queries, addCallbackToQueries, queriesToQuerySetsAndCallbacks, querySet, connection) {
+        let queriesToBeAdded = [];
         for (const query of queries) {
-            let toAdd: string[] = addCallbackToQueries([query.query], query.listener, query.errorListener, true, true,
-                queriesToQuerySetsAndCallbacks, querySet);
+            let toAdd = addCallbackToQueries([query.query], query.listener, query.errorListener, true, true, queriesToQuerySetsAndCallbacks, querySet);
             queriesToBeAdded.push(...toAdd);
         }
         if (queriesToBeAdded.length) {
@@ -136,18 +102,14 @@ export class QuerySet {
             connection.send(msg);
         }
     }
-    
     /**
-     * Unsubscribe from the query. 
+     * Unsubscribe from the query.
      * @param query SQL query to be unsubscribed
      */
-    public unsubscribe(query: string): void {
+    unsubscribe(query) {
         this.unsubscribeList([query], this.removeCallbacksForQuery, this.queriesToQuerySetsAndCallbacks, this, this.connection);
     }
-    
-    private unsubscribeList(queries: string[], removeCallbacksForQuery: (
-        queries: string[], queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) => string[],
-        queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet, connection: Connection): void {
+    unsubscribeList(queries, removeCallbacksForQuery, queriesToQuerySetsAndCallbacks, querySet, connection) {
         let queriesToBeRemoved = removeCallbacksForQuery(queries, queriesToQuerySetsAndCallbacks, querySet);
         if (queriesToBeRemoved.length) {
             const msg = JSON.stringify({
@@ -157,23 +119,19 @@ export class QuerySet {
             connection.send(msg);
         }
     }
-    
     /**
      * Unsubscribe from all query in the QuerySet.
      */
-    public unsubscribeAll(): void {
-        let queries: string[] = Array.from(this.queriesToQuerySetsAndCallbacks.keys());
+    unsubscribeAll() {
+        let queries = Array.from(this.queriesToQuerySetsAndCallbacks.keys());
         this.unsubscribeList(queries, this.removeCallbacksForQuery, this.queriesToQuerySetsAndCallbacks, this, this.connection);
     }
-    
     /**
-     * Create QueryBatch instance to join all queries in one request and assemble at the end. 
+     * Create QueryBatch instance to join all queries in one request and assemble at the end.
      */
-    public batch(): QueryBatch {
-        return new QueryBatch(this.retrieveList, this.retrieveAndSubscribeList, this.subscribeList, this.unsubscribeList,
-            this.addCallbackToQueries, this.removeCallbacksForQuery, this.queriesToQuerySetsAndCallbacks, this, this.connection);
+    batch() {
+        return new query_batch_1.QueryBatch(this.retrieveList, this.retrieveAndSubscribeList, this.subscribeList, this.unsubscribeList, this.addCallbackToQueries, this.removeCallbacksForQuery, this.queriesToQuerySetsAndCallbacks, this, this.connection);
     }
-    
     /**
      * Add query and callback to map which uses for incoming messages in onMessage function
      *
@@ -185,16 +143,16 @@ export class QuerySet {
      * @param queriesToQuerySetsAndCallbacks
      * @param querySet
      * @returns list of queries were added. Not all queries are new. Some of them can be reused.
-     * 
+     *
      */
-    private addCallbackToQueries(queries: string[], callback: any, errorCallback: any, once: boolean, initial: boolean,
-        queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) {
+    addCallbackToQueries(queries, callback, errorCallback, once, initial, queriesToQuerySetsAndCallbacks, querySet) {
         let queriesToBeAdded = [];
         for (let query of queries) {
             let querySetsAndCallbacksOnce = queriesToQuerySetsAndCallbacks.get(query);
             if (!querySetsAndCallbacksOnce) {
                 querySetsAndCallbacksOnce = { qsCb: new Map(), qsErrCb: new Map(), once: false, initial: false, count: 0 };
-            } else if (querySetsAndCallbacksOnce.once !== once) {
+            }
+            else if (querySetsAndCallbacksOnce.once !== once) {
                 //console.log(`Query already exists in queriesToQuerySetsAndCallbacks: ${query}`);
                 return queriesToBeAdded;
             }
@@ -206,25 +164,21 @@ export class QuerySet {
                 queriesToBeAdded.push(query);
                 //console.log(`Added query in queriesToQuerySetsAndCallbacks: ${query}`);
             }
-
             let callbacks = querySetsAndCallbacksOnce.qsCb.get(querySet);
-            callbacks ??= [];
-            callbacks.push(callback)
+            callbacks !== null && callbacks !== void 0 ? callbacks : (callbacks = []);
+            callbacks.push(callback);
             querySetsAndCallbacksOnce.qsCb.set(querySet, callbacks);
-            
             if (errorCallback) {
                 let errorCallbacks = querySetsAndCallbacksOnce.qsErrCb.get(querySet);
-                errorCallbacks ??= [];
-                errorCallbacks.push(errorCallback)
+                errorCallbacks !== null && errorCallbacks !== void 0 ? errorCallbacks : (errorCallbacks = []);
+                errorCallbacks.push(errorCallback);
                 querySetsAndCallbacksOnce.qsErrCb.set(querySet, errorCallbacks);
             }
-            
             queriesToQuerySetsAndCallbacks.set(query, querySetsAndCallbacksOnce);
         }
         return queriesToBeAdded;
     }
-    
-    private removeCallbacksForQuery(queries: string[], queriesToQuerySetsAndCallbacks: Map<any,any>, querySet: QuerySet) {
+    removeCallbacksForQuery(queries, queriesToQuerySetsAndCallbacks, querySet) {
         let queriesToBeRemoved = [];
         for (let query of queries) {
             let querySetsAndCallbacksOnce = queriesToQuerySetsAndCallbacks.get(query);
@@ -240,5 +194,5 @@ export class QuerySet {
         }
         return queriesToBeRemoved;
     }
-    
 }
+exports.QuerySet = QuerySet;

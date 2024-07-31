@@ -2,7 +2,8 @@
   "name": "photoniq-eds-ws",
   "version": "0.1.0",
   "description": "Web Socket Driver for the PhotonIQ EDS",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "private": true,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
