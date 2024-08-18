@@ -37,7 +37,11 @@ export class SseConnection implements InternalConnection {
     }
     
     send(filter: Filter): void {
-        
+        if (filter) {
+            this.disconnect();
+            let filters = this.filtersState.activeFilters();
+            this.retrieve(filters);
+        }
     }
     
     /**

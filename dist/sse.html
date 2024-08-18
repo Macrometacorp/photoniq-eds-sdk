@@ -28,7 +28,7 @@
         }
     };
 
-    let connection = PhotoniqEdsWs.create({
+    let connection = PhotoniqEdsWs.connect({
         host: "eds32-us-west.eng.macrometa.io",
         customerId: "cust-edsgdn",
         apiKey: "ptq_21mYB1MFWrd_2bfw3CseStzVZtLKCyFWo2TqrJDUrTuFs",
@@ -40,10 +40,7 @@
     
     qs.retrieveAndSubscribe("select arena.arenaId, arena.arenaName from box_trim where attendance=4", (event) => {
         console.log(`box_trim event: `, event);
-    })
-
-    connection.connect();
-
+    });
 
 </script>
 </body>
