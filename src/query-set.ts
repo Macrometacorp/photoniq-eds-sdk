@@ -6,7 +6,7 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 
-import { Config, Filter } from "./types";
+import {Config, EDSEvent, Filter} from "./types";
 import { ConnectionManager } from "./connection-manager";
 import { QueryBatch } from "./query-batch";
 import { FiltersState, TRUE } from "./filters-state";
@@ -20,8 +20,9 @@ import { FiltersState, TRUE } from "./filters-state";
 /** @ignore */
 export type Query = {
     query: string;
-    listener: any;
-    errorListener: any;
+    listener: (type: EDSEvent) => void;
+    errorListener?: (type: EDSEvent) => void;
+    compress: boolean
 };
 
 /**
@@ -43,11 +44,12 @@ export class QuerySet {
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
-    public subscribe(query: string, listener: any, errorListener: any): void {
+    public subscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void): void {
         let queries = [{
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: false
         }];
         let filtersToAdd = this.filtersState.addQueries(queries, false, false, false, this);
         for (const filterToAdd of filtersToAdd) {
@@ -60,14 +62,16 @@ export class QuerySet {
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    public retrieveAndSubscribe(query: string, listener: any, errorListener: any): void {
+    public retrieveAndSubscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): void {
         let queries = [{
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: compress === true
         }];
-        let filtersToAdd = this.filtersState.addQueries(queries, true, false, false, this);
+        let filtersToAdd = this.filtersState.addQueries(queries, true, false, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
             this.connection.send(JSON.stringify(filterToAdd));
         }
@@ -78,14 +82,16 @@ export class QuerySet {
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    public retrieve(query: string, listener: any, errorListener: any): void {
+    public retrieve(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): void {
         let queries = [{
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: compress === true
         }];
-        let filtersToAdd = this.filtersState.addQueries(queries, true, true, false, this);
+        let filtersToAdd = this.filtersState.addQueries(queries, true, true, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
             this.connection.send(JSON.stringify(filterToAdd));
         }

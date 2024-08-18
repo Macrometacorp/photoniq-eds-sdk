@@ -1,4 +1,4 @@
-import { Config, InternalConnection, ConnectionStatus, ConnectionProperties } from "../types";
+import { Config, ConnectionProperties, ConnectionStatus, InternalConnection } from "../types";
 import { FiltersState } from "../filters-state";
 export declare class WsConnection implements InternalConnection {
     private readonly STUB_FILTER;

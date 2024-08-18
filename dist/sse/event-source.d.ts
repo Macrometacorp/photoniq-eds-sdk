@@ -1,14 +1,20 @@
+import { ConnectionProperties } from "../types";
 export declare class EventSource {
     private url;
     private headers;
+    private properties;
+    private reader?;
     private openListener?;
     private messageListener?;
     private errorListener?;
     private closeListener?;
     constructor(url: string, headers: HeadersInit);
-    onopen(listener: (event: any) => void): void;
-    onmessage(listener: (event: any) => void): void;
-    onerror(listener: (event: any) => void): void;
-    onclose(listener: (event: any) => void): void;
+    onOpen(listener: (event: any) => void): void;
+    onMessage(listener: (event: any) => void): void;
+    onError(listener: (event: any) => void): void;
+    onClose(listener: (event: any) => void): void;
     connect(data: any): Promise<void>;
+    disconnect(): void;
+    getProperty(name: string): string | undefined;
+    getProperties(): ConnectionProperties;
 }

@@ -5,6 +5,7 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
+import { EDSEvent } from "./types";
 import { ConnectionManager } from "./connection-manager";
 import { QueryBatch } from "./query-batch";
 import { FiltersState } from "./filters-state";
@@ -16,8 +17,9 @@ import { FiltersState } from "./filters-state";
 /** @ignore */
 export type Query = {
     query: string;
-    listener: any;
-    errorListener: any;
+    listener: (type: EDSEvent) => void;
+    errorListener?: (type: EDSEvent) => void;
+    compress: boolean;
 };
 /**
  * Manages queries as a set
@@ -33,21 +35,23 @@ export declare class QuerySet {
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
-    subscribe(query: string, listener: any, errorListener: any): void;
+    subscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void): void;
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    retrieveAndSubscribe(query: string, listener: any, errorListener: any): void;
+    retrieveAndSubscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): void;
     /**
      * Retrieve query. Returns result as usual DB call.
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    retrieve(query: string, listener: any, errorListener: any): void;
+    retrieve(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): void;
     /**
      * Unsubscribe from the query.
      * @param query SQL query to be unsubscribed

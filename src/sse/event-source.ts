@@ -1,9 +1,11 @@
-import { EDSEvent } from "../types";
+import {ConnectionProperties, EDSEvent } from "../types";
 
 export class EventSource {
     //private xhr: XMLHttpRequest;
     private url: string;
     private headers: HeadersInit;
+    private properties: ConnectionProperties = {};
+    private reader?: ReadableStreamDefaultReader<Uint8Array>;
     private openListener?: (event: any) => void;
     private messageListener?: (event: any) => void;
     private errorListener?: (event: any) => void;
@@ -12,58 +14,25 @@ export class EventSource {
     constructor(url: string, headers: HeadersInit) {
         this.url = url;
         this.headers = headers;
-        /*this.xhr = new XMLHttpRequest();
-        
-        this.xhr.open('POST', url, true);
-        
-        for (const key in headers) {
-            this.xhr.setRequestHeader(key, headers[key]);
-        }
-    
-        let self = this;
-        this.xhr.onreadystatechange = () => {
-            if (self.xhr.readyState === 2 || self.xhr.readyState === 3) {
-                if (self.xhr.status >=200 && self.xhr.status < 300) {
-                    let message = self.xhr.responseText.substring(self.index);
-                    self.index = self.xhr.responseText.length;
-                    console.log('Message:', message);
-                    if (self.messageListener) {
-                        self.messageListener(message);
-                    }
-                } else {
-                    console.error('Error:', self.xhr.statusText);
-                    if (self.errorListener) {
-                        self.errorListener(self.xhr.statusText);
-                    }
-                }
-            }
-        };
-    
-        this.xhr.onerror = () => {
-            console.error('Request error:', this.xhr.statusText);
-        };*/
-        
-        
     }
     
-    public onopen(listener: (event: any) => void) {
+    public onOpen(listener: (event: any) => void) {
         this.openListener = listener;
     }
     
-    public onmessage(listener: (event: any) => void) {
+    public onMessage(listener: (event: any) => void) {
         this.messageListener = listener;
     }
     
-    public onerror(listener: (event: any) => void) {
+    public onError(listener: (event: any) => void) {
         this.errorListener = listener;
     }
     
-    public onclose(listener: (event: any) => void) {
+    public onClose(listener: (event: any) => void) {
         this.closeListener = listener;
     }
     
     public async connect(data: any) {
-        
         try {
             const response = await fetch(this.url, {
                 method: 'POST', 
@@ -72,23 +41,66 @@ export class EventSource {
             });
     
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                this.errorListener?.(response);
+            } else {
+                this.openListener?.(response);
             }
     
             const stream: ReadableStream<Uint8Array> = response.body!;
             
-            const reader = stream.getReader();
-            let result: ReadableStreamReadResult<Uint8Array>;
-            while (!(result = await reader.read()).done) {
-                
-                let v = new TextDecoder('utf-8').decode(result.value);
-                console.log('Response data:', v);
+            let buffer = "";
+            this.reader = stream.getReader();
+            let streamResult: ReadableStreamReadResult<Uint8Array>;
+            while (!(streamResult = await this.reader.read()).done) {
+                let result = new TextDecoder('utf-8').decode(streamResult.value);
+                buffer += result;
+                let endIndex = buffer.indexOf("\n\n");
+                if (endIndex > -1) {
+                    //message complete
+                    let message = buffer.substring(0, endIndex);
+                    buffer = buffer.substring(endIndex + 2);
+
+                    if (message.startsWith(":")) {
+                        const lines = result.split("\n");
+                        for (const line of lines) {
+                            const keyValue = line.split(":");
+                            if (keyValue.length == 3) {
+                                this.properties[keyValue[1].trim()] = keyValue[2].trim();
+                            }
+                        }
+                    } else {
+                        let valueIndex = message.indexOf(":");
+                        if (valueIndex > -1) {
+                            let key = message.substring(0, valueIndex).trim();
+                            if (message[valueIndex + 1] === " ") valueIndex++;
+                            valueIndex++;
+                            let value = message.substring(valueIndex).replace(/\ndata: ?/g, "\n");
+                            switch (key) {
+                                case "data":
+                                    this.messageListener?.(value);
+                                    break;
+                                default:
+                                    console.warn(`Not supported message with type of message ${key}: ${value}`);
+                            }
+                        }
+                    }
+                }
             }
-            
-            
         } catch (error) {
-            console.error('There was a problem with the fetch operation:', error);
+            this.errorListener?.(error);
         }
-        
     }
+
+    public disconnect() {
+        this.reader?.cancel();
+    }
+
+    public getProperty(name: string): string | undefined {
+        return this.properties[name];
+    }
+
+    public getProperties(): ConnectionProperties {
+        return this.properties;
+    }
+
 }

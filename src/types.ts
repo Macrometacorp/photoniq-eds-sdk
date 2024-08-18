@@ -23,7 +23,7 @@ export type Config = {
     customerId: string;
     apiKey: string;
     fabric?: string;
-    primaryConnection?: string;
+    connectionTypes?: string[];
     pingSeconds?: number;
 };
 

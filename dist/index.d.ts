@@ -8,7 +8,14 @@
 import { Config, EDSEvent } from "./types";
 import { ConnectionManager } from "./connection-manager";
 /**
- * Establish connection to PhotonIQ EDS server.
+ * Create a new connection innstance.
+ * @param config configuration for the connection
+ * @param globalListener listen all `EDSEvent` events.
+ * @module connection
+ */
+export declare function create(config: Config, globalListener: (type: EDSEvent) => void): ConnectionManager;
+/**
+ * Create a new connection innstance and establish connection to PhotonIQ EDS server.
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
  * @module connection

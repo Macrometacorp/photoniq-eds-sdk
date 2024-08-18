@@ -12,7 +12,7 @@ export class SwitchableConnection implements InternalConnection {
     private closeListener?: (type: any) => void;
     private errorListener?: (type: any) => void;
     private connection?: InternalConnection;
-    private connectionTypes = ["ws"/*, "sse"*/];
+    private connectionTypes = ["ws"];
     private reconnection = -1;
     
     constructor(config: Config, filtersState: FiltersState) {
@@ -23,12 +23,8 @@ export class SwitchableConnection implements InternalConnection {
     connect(): void {
         if (this.connection) throw new Error(`Already connected with status: ${this.status()}`);
         
-        // move primary connection to first position of connectionTypes array
-        if (this.config.primaryConnection) {
-            let index = this.connectionTypes.indexOf(this.config.primaryConnection);
-            if (index === -1) throw new Error(`Wrong connection type set as primaryConnection: ${this.config.primaryConnection}`);
-            const [primaryConnection] = this.connectionTypes.splice(index, 1);
-            this.connectionTypes.unshift(primaryConnection);
+        if (this.config.connectionTypes?.length) {
+            this.connectionTypes = this.config.connectionTypes;
         }
         
         let connectionType = this.connectionTypes[this.reconnection % this.connectionTypes.length];
@@ -37,7 +33,7 @@ export class SwitchableConnection implements InternalConnection {
                 this.connection = new WsConnection(this.config, this.filtersState);
                 break;
             case "sse":
-                this.connection = new SseConnection(this.config);
+                this.connection = new SseConnection(this.config, this.filtersState);
                 break;
             default:
                 throw new Error(`Connection type not supported: ${connectionType}`);

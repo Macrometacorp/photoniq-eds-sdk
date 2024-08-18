@@ -9,7 +9,7 @@
 import { Query, QuerySet } from "./query-set";
 import { ConnectionManager } from "./connection-manager";
 import {FiltersState} from "./filters-state";
-import { Filter } from "./types";
+import {EDSEvent, Filter } from "./types";
 
 /**
  * @module QueryBatch
@@ -39,11 +39,12 @@ export class QueryBatch {
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
-    public subscribe(query: string, listener: any, errorListener: any): QueryBatch {
+    public subscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void): QueryBatch {
         this.subscribeQueries.push({
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: false
         });
         return this;
     }
@@ -53,12 +54,14 @@ export class QueryBatch {
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    public retrieveAndSubscribe(query: string, listener: any, errorListener: any): QueryBatch {
+    public retrieveAndSubscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): QueryBatch {
         this.retrieveAndSubscribeQueries.push({
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: compress === true
             });
         return this;
     }
@@ -68,12 +71,14 @@ export class QueryBatch {
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    public retrieve(query: string, listener: any, errorListener: any): QueryBatch {
+    public retrieve(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): QueryBatch {
         this.retrieveQueries.push({
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: compress === true
             });
         return this;
     }

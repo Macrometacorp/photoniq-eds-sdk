@@ -28,21 +28,21 @@
         }
     };
 
-    let connection = PhotoniqEdsWs.connect({
-    host: "eds32-us-west.eng.macrometa.io",
-    customerId: "cust-edsgdn",
-    apiKey: "ptq_21mYB1MFWrd_2bfw3CseStzVZtLKCyFWo2TqrJDUrTuFs",
-    fabric: "_system",
-    primaryConnection: "sse",    
+    let connection = PhotoniqEdsWs.create({
+        host: "eds32-us-west.eng.macrometa.io",
+        customerId: "cust-edsgdn",
+        apiKey: "ptq_21mYB1MFWrd_2bfw3CseStzVZtLKCyFWo2TqrJDUrTuFs",
+        fabric: "_system",
+        connectionTypes: ["sse"],
     }, globalListener);
     
-    //let qs = connection.querySet();
+    let qs = connection.querySet();
+    
+    qs.retrieveAndSubscribe("select arena.arenaId, arena.arenaName from box_trim where attendance=4", (event) => {
+        console.log(`box_trim event: `, event);
+    })
 
-    
-    /*qs.retrieve("SELECT linescore FROM game_live WHERE _key='0012307019'", (event) => {
-        console.log(`Linescore event: `, event);
-    })*/
-    
+    connection.connect();
 
 
 </script>

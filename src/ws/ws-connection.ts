@@ -1,5 +1,15 @@
-import { Config, EDSEvent, InternalConnection, ConnectionStatus, PHOTONIQ_ES, EDSEventType, Filter, EDSEventMessage, EDSEventError, ConnectionProperties } from "../types";
-import { FiltersState, FALSE, TRUE } from "../filters-state";
+import {
+    Config,
+    ConnectionProperties,
+    ConnectionStatus,
+    EDSEvent,
+    EDSEventError,
+    EDSEventMessage,
+    EDSEventType,
+    InternalConnection,
+    PHOTONIQ_ES
+} from "../types";
+import {FiltersState} from "../filters-state";
 
 export class WsConnection implements InternalConnection {
     
@@ -213,7 +223,9 @@ export class WsConnection implements InternalConnection {
         let self = this;
         if (!self.config.pingSeconds || self.config.pingSeconds > 0) {
             this.pingIntervalId = setInterval(() => {
-                self.send("{1}");
+                if (self.status() === ConnectionStatus.Open) {
+                    self.ws?.send("{1}");
+                }
             }, (self.config.pingSeconds ?? this.DEFAULT_PING_SECONDS) * 1000);
         }
     }
