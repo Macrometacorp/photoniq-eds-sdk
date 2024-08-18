@@ -7,9 +7,9 @@
  */
 
 import { Query, QuerySet } from "./query-set";
-import { ConnectionManager } from "./connection-manager";
 import {FiltersState} from "./filters-state";
 import {EDSEvent, Filter } from "./types";
+import { SwitchableConnection } from "./switchable-connection";
 
 /**
  * @module QueryBatch
@@ -17,7 +17,7 @@ import {EDSEvent, Filter } from "./types";
  */
 export class QueryBatch {
     private readonly querySet: QuerySet;
-    private readonly connection: ConnectionManager;
+    private readonly connection: SwitchableConnection;
     private readonly filtersState: FiltersState;
     private subscribeQueries: Query[] = [];
     private retrieveAndSubscribeQueries: Query[] = [];
@@ -26,7 +26,7 @@ export class QueryBatch {
     
     /** @ignore */
     constructor(querySet: QuerySet,
-                connection: ConnectionManager,
+                connection: SwitchableConnection,
                 filtersState: FiltersState) {
         this.querySet = querySet;
         this.connection = connection;
@@ -102,11 +102,11 @@ export class QueryBatch {
         let subscribeFilters = this.filtersState.addQueries(this.subscribeQueries, false, false, false, this.querySet);
         this.joinFilters(filters, subscribeFilters);
         for (const filterToAdd of filters) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
         let unsubscribeFilter = this.filtersState.removeQueries(this.unsubscribeQueries, this.querySet);
         if (unsubscribeFilter) {
-            this.connection.send(JSON.stringify(unsubscribeFilter));
+            this.connection.send(unsubscribeFilter);
         }
     }
 

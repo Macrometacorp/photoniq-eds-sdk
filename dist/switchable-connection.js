@@ -1,59 +1,76 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.SwitchableConnection = void 0;
-const types_1 = require("./types");
-const ws_connection_1 = require("./ws/ws-connection");
-const sse_connection_1 = require("./sse/sse-connection");
-class SwitchableConnection {
-    constructor(config, filtersState) {
-        this.connectionTypes = ["ws" /*, "sse"*/];
-        this.reconnection = 0;
+/**
+ * Copyright (C) Macrometa, Inc - All Rights Reserved
+ *
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ * Written by Macrometa, Inc <product@macrometa.com>, May 2024
+ */
+import { ConnectionStatus, EDSEventType } from "./types";
+import { WsConnection } from "./ws/ws-connection";
+import { SseConnection } from "./sse/sse-connection";
+import { FiltersState } from "./filters-state";
+import { QuerySet } from "./query-set";
+export class SwitchableConnection {
+    constructor(config, globalListener) {
+        this.connectionTypes = ["ws"];
+        this.reconnection = -1;
         this.config = config;
-        this.filtersState = filtersState;
+        this.filtersState = new FiltersState(globalListener);
     }
+    /**
+     * Connect to Web Socket server
+     */
     connect() {
+        var _a;
         if (this.connection)
             throw new Error(`Already connected with status: ${this.status()}`);
-        // move primary connection to first position of connectionTypes array
-        if (this.config.primaryConnection) {
-            let index = this.connectionTypes.indexOf(this.config.primaryConnection);
-            if (index === -1)
-                throw new Error(`Wrong connection type set as primaryConnection: ${this.config.primaryConnection}`);
-            const [primaryConnection] = this.connectionTypes.splice(index, 1);
-            this.connectionTypes.unshift(primaryConnection);
+        if ((_a = this.config.connectionTypes) === null || _a === void 0 ? void 0 : _a.length) {
+            this.connectionTypes = this.config.connectionTypes;
         }
         let connectionType = this.connectionTypes[this.reconnection % this.connectionTypes.length];
         switch (connectionType) {
             case "ws":
-                this.connection = new ws_connection_1.WsConnection(this.config, this.filtersState);
+                this.connection = new WsConnection(this.config, this.filtersState);
                 break;
             case "sse":
-                this.connection = new sse_connection_1.SseConnection(this.config);
+                this.connection = new SseConnection(this.config, this.filtersState);
                 break;
             default:
                 throw new Error(`Connection type not supported: ${connectionType}`);
         }
         let self = this;
         this.connection.onOpen(function (event) {
-            var _a, _b;
+            var _a;
+            let reconnection = self.reconnection;
             self.reconnection = 0;
-            (_a = self.openListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
+            if (reconnection === -1) {
+                const edsEvent = {
+                    type: EDSEventType.Open,
+                    connection: self,
+                    data: event
+                };
+                self.filtersState.handleGlobalListener(event);
+            }
             // send current subscribed filters.
             let filters = self.filtersState.activeFilters();
             for (const filter of filters) {
-                (_b = self.connection) === null || _b === void 0 ? void 0 : _b.send(JSON.stringify(filter));
+                (_a = self.connection) === null || _a === void 0 ? void 0 : _a.send(filter);
             }
         });
         this.connection.onMessage(function (event) {
-            var _a;
-            (_a = self.messageListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
+            // handles on higher level, maybe TODO
         });
         this.connection.onError(function (event) {
-            var _a;
-            (_a = self.errorListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
+            // TODO ???
+            /*const edsEvent: EDSEvent & EDSEventError = {
+                type: EDSEventType.ClientGlobalError,
+                connection: self,
+                data: event,
+                message: "Client error",
+            };
+            self.filtersState.handleGlobalListener(edsEvent);*/
         });
         this.connection.onClose(function (event) {
-            var _a;
             self.connection = undefined;
             if (self.reconnection > -1) {
                 let millisToReconnect = Math.pow(2, 6 + self.reconnection++);
@@ -63,45 +80,72 @@ class SwitchableConnection {
             }
             else {
                 self.reconnection = 0;
-                (_a = self.closeListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
+                const edsEvent = {
+                    type: EDSEventType.Close,
+                    connection: self,
+                    data: event
+                };
+                self.filtersState.handleGlobalListener(edsEvent);
             }
         });
         this.connection.connect();
     }
-    send(msg) {
+    /**
+     * Send data directly to web socket
+     */
+    send(filter) {
         var _a;
-        /*let filter: Filter = JSON.parse(msg);
-        this.filtersState.addFilter(filter);*/
-        (_a = this.connection) === null || _a === void 0 ? void 0 : _a.send(msg);
+        (_a = this.connection) === null || _a === void 0 ? void 0 : _a.send(filter);
     }
+    /**
+     * Disconnect from web socket
+     */
     disconnect() {
         var _a;
         this.reconnection = -1;
         (_a = this.connection) === null || _a === void 0 ? void 0 : _a.disconnect();
     }
+    /**
+     * Get configuration of the connection
+     */
+    getConfig() {
+        return this.config;
+    }
+    /**
+     * Check weather it connected
+     */
     status() {
         if (this.connection) {
             return this.connection.status();
         }
         else {
-            return types_1.ConnectionStatus.Closed;
+            return ConnectionStatus.Closed;
         }
     }
-    onOpen(listener) {
-        this.openListener = listener;
-    }
-    onMessage(listener) {
-        this.messageListener = listener;
-    }
-    onClose(listener) {
-        this.closeListener = listener;
-    }
-    onError(listener) {
-        this.errorListener = listener;
-    }
+    /**
+     * Get connection id
+     */
     getId() {
         var _a;
         return (_a = this.connection) === null || _a === void 0 ? void 0 : _a.getId();
     }
+    /**
+     * Get property
+     */
+    getProperty(name) {
+        var _a;
+        return (_a = this.connection) === null || _a === void 0 ? void 0 : _a.getProperty(name);
+    }
+    /**
+     * Get all properties
+     */
+    getProperties() {
+        return this.connection ? this.connection.getProperties() : {};
+    }
+    /**
+     * Create Query Set
+     */
+    querySet() {
+        return new QuerySet(this, this.filtersState);
+    }
 }
-exports.SwitchableConnection = SwitchableConnection;

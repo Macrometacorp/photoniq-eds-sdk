@@ -8,7 +8,7 @@
 
 import _ from 'lodash';
 import { Config, EDSEvent, Connection } from "./types";
-import { ConnectionManager } from "./connection-manager";
+import {SwitchableConnection} from "./switchable-connection";
 
 /**
  * Create a new connection innstance.
@@ -16,8 +16,8 @@ import { ConnectionManager } from "./connection-manager";
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export function create(config: Config, globalListener: (type: EDSEvent) => void): ConnectionManager {
-    let connection = new ConnectionManager(config, globalListener);
+export function create(config: Config, globalListener: (type: EDSEvent) => void): SwitchableConnection {
+    let connection = new SwitchableConnection(config, globalListener);
     return connection;
 }
 
@@ -27,8 +27,8 @@ export function create(config: Config, globalListener: (type: EDSEvent) => void)
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export function connect(config: Config, globalListener: (type: EDSEvent) => void): ConnectionManager {
-    let connection = new ConnectionManager(config, globalListener);
+export function connect(config: Config, globalListener: (type: EDSEvent) => void): SwitchableConnection {
+    let connection = new SwitchableConnection(config, globalListener);
     connection.connect();
     return connection;
 }

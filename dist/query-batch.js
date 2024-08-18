@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Copyright (C) Macrometa, Inc - All Rights Reserved
  *
@@ -6,13 +5,11 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.QueryBatch = void 0;
 /**
  * @module QueryBatch
  * Joins all querues togather and sends as a batch
  */
-class QueryBatch {
+export class QueryBatch {
     /** @ignore */
     constructor(querySet, connection, filtersState) {
         this.subscribeQueries = [];
@@ -33,7 +30,8 @@ class QueryBatch {
         this.subscribeQueries.push({
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: false
         });
         return this;
     }
@@ -42,12 +40,14 @@ class QueryBatch {
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    retrieveAndSubscribe(query, listener, errorListener) {
+    retrieveAndSubscribe(query, listener, errorListener, compress) {
         this.retrieveAndSubscribeQueries.push({
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: compress === true
         });
         return this;
     }
@@ -56,12 +56,14 @@ class QueryBatch {
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    retrieve(query, listener, errorListener) {
+    retrieve(query, listener, errorListener, compress) {
         this.retrieveQueries.push({
             query: query,
             listener: listener,
-            errorListener: errorListener
+            errorListener: errorListener,
+            compress: compress === true
         });
         return this;
     }
@@ -83,11 +85,11 @@ class QueryBatch {
         let subscribeFilters = this.filtersState.addQueries(this.subscribeQueries, false, false, false, this.querySet);
         this.joinFilters(filters, subscribeFilters);
         for (const filterToAdd of filters) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
         let unsubscribeFilter = this.filtersState.removeQueries(this.unsubscribeQueries, this.querySet);
         if (unsubscribeFilter) {
-            this.connection.send(JSON.stringify(unsubscribeFilter));
+            this.connection.send(unsubscribeFilter);
         }
     }
     joinFilters(target, source) {
@@ -102,4 +104,3 @@ class QueryBatch {
         }
     }
 }
-exports.QueryBatch = QueryBatch;

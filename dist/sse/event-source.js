@@ -1,4 +1,3 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,57 +7,27 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.EventSource = void 0;
-class EventSource {
+export class EventSource {
     constructor(url, headers) {
+        this.properties = {};
         this.url = url;
         this.headers = headers;
-        /*this.xhr = new XMLHttpRequest();
-        
-        this.xhr.open('POST', url, true);
-        
-        for (const key in headers) {
-            this.xhr.setRequestHeader(key, headers[key]);
-        }
-    
-        let self = this;
-        this.xhr.onreadystatechange = () => {
-            if (self.xhr.readyState === 2 || self.xhr.readyState === 3) {
-                if (self.xhr.status >=200 && self.xhr.status < 300) {
-                    let message = self.xhr.responseText.substring(self.index);
-                    self.index = self.xhr.responseText.length;
-                    console.log('Message:', message);
-                    if (self.messageListener) {
-                        self.messageListener(message);
-                    }
-                } else {
-                    console.error('Error:', self.xhr.statusText);
-                    if (self.errorListener) {
-                        self.errorListener(self.xhr.statusText);
-                    }
-                }
-            }
-        };
-    
-        this.xhr.onerror = () => {
-            console.error('Request error:', this.xhr.statusText);
-        };*/
     }
-    onopen(listener) {
+    onOpen(listener) {
         this.openListener = listener;
     }
-    onmessage(listener) {
+    onMessage(listener) {
         this.messageListener = listener;
     }
-    onerror(listener) {
+    onError(listener) {
         this.errorListener = listener;
     }
-    onclose(listener) {
+    onClose(listener) {
         this.closeListener = listener;
     }
     connect(data) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c, _d;
             try {
                 const response = yield fetch(this.url, {
                     method: 'POST',
@@ -66,20 +35,65 @@ class EventSource {
                     body: JSON.stringify(data),
                 });
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    (_a = this.errorListener) === null || _a === void 0 ? void 0 : _a.call(this, response);
+                }
+                else {
+                    (_b = this.openListener) === null || _b === void 0 ? void 0 : _b.call(this, response);
                 }
                 const stream = response.body;
-                const reader = stream.getReader();
-                let result;
-                while (!(result = yield reader.read()).done) {
-                    let v = new TextDecoder('utf-8').decode(result.value);
-                    console.log('Response data:', v);
+                let buffer = "";
+                this.reader = stream.getReader();
+                let streamResult;
+                while (!(streamResult = yield this.reader.read()).done) {
+                    let result = new TextDecoder('utf-8').decode(streamResult.value);
+                    buffer += result;
+                    let endIndex = buffer.indexOf("\n\n");
+                    if (endIndex > -1) {
+                        //message complete
+                        let message = buffer.substring(0, endIndex);
+                        buffer = buffer.substring(endIndex + 2);
+                        if (message.startsWith(":")) {
+                            const lines = result.split("\n");
+                            for (const line of lines) {
+                                const keyValue = line.split(":");
+                                if (keyValue.length == 3) {
+                                    this.properties[keyValue[1].trim()] = keyValue[2].trim();
+                                }
+                            }
+                        }
+                        else {
+                            let valueIndex = message.indexOf(":");
+                            if (valueIndex > -1) {
+                                let key = message.substring(0, valueIndex).trim();
+                                if (message[valueIndex + 1] === " ")
+                                    valueIndex++;
+                                valueIndex++;
+                                let value = message.substring(valueIndex).replace(/\ndata: ?/g, "\n");
+                                switch (key) {
+                                    case "data":
+                                        (_c = this.messageListener) === null || _c === void 0 ? void 0 : _c.call(this, value);
+                                        break;
+                                    default:
+                                        console.warn(`Not supported message with type of message ${key}: ${value}`);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             catch (error) {
-                console.error('There was a problem with the fetch operation:', error);
+                (_d = this.errorListener) === null || _d === void 0 ? void 0 : _d.call(this, error);
             }
         });
     }
+    disconnect() {
+        var _a;
+        (_a = this.reader) === null || _a === void 0 ? void 0 : _a.cancel();
+    }
+    getProperty(name) {
+        return this.properties[name];
+    }
+    getProperties() {
+        return this.properties;
+    }
 }
-exports.EventSource = EventSource;

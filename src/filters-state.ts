@@ -1,3 +1,11 @@
+/**
+ * Copyright (C) Macrometa, Inc - All Rights Reserved
+ *
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ * Written by Macrometa, Inc <product@macrometa.com>, May 2024
+ */
+
 import {EDSEvent, Filter, FilterState} from "./types";
 import {Query, QuerySet} from "./query-set";
 

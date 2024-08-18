@@ -6,9 +6,9 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 import { EDSEvent } from "./types";
-import { ConnectionManager } from "./connection-manager";
 import { QueryBatch } from "./query-batch";
 import { FiltersState } from "./filters-state";
+import { SwitchableConnection } from "./switchable-connection";
 /**
  * @module QuerySet
  *
@@ -28,7 +28,7 @@ export declare class QuerySet {
     private readonly connection;
     private readonly filtersState;
     /** @ignore */
-    constructor(connection: ConnectionManager, filtersState: FiltersState);
+    constructor(connection: SwitchableConnection, filtersState: FiltersState);
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed

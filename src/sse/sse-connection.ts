@@ -36,7 +36,7 @@ export class SseConnection implements InternalConnection {
         };
     }
     
-    send(msg: string): void {
+    send(filter: Filter): void {
         
     }
     

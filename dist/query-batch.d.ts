@@ -6,9 +6,9 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 import { QuerySet } from "./query-set";
-import { ConnectionManager } from "./connection-manager";
 import { FiltersState } from "./filters-state";
 import { EDSEvent } from "./types";
+import { SwitchableConnection } from "./switchable-connection";
 /**
  * @module QueryBatch
  * Joins all querues togather and sends as a batch
@@ -22,7 +22,7 @@ export declare class QueryBatch {
     private retrieveQueries;
     private unsubscribeQueries;
     /** @ignore */
-    constructor(querySet: QuerySet, connection: ConnectionManager, filtersState: FiltersState);
+    constructor(querySet: QuerySet, connection: SwitchableConnection, filtersState: FiltersState);
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed

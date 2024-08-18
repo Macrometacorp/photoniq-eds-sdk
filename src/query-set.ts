@@ -7,9 +7,9 @@
  */
 
 import {Config, EDSEvent, Filter} from "./types";
-import { ConnectionManager } from "./connection-manager";
 import { QueryBatch } from "./query-batch";
 import { FiltersState, TRUE } from "./filters-state";
+import {SwitchableConnection} from "./switchable-connection";
 
 /**
  * @module QuerySet
@@ -29,11 +29,11 @@ export type Query = {
  * Manages queries as a set
  */
 export class QuerySet {
-    private readonly connection: ConnectionManager;
+    private readonly connection: SwitchableConnection;
     private readonly filtersState: FiltersState;
 
     /** @ignore */
-    constructor(connection: ConnectionManager, filtersState: FiltersState) {
+    constructor(connection: SwitchableConnection, filtersState: FiltersState) {
         this.connection = connection;
         this.filtersState = filtersState;
     }
@@ -53,7 +53,7 @@ export class QuerySet {
         }];
         let filtersToAdd = this.filtersState.addQueries(queries, false, false, false, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
     }
     
@@ -73,7 +73,7 @@ export class QuerySet {
         }];
         let filtersToAdd = this.filtersState.addQueries(queries, true, false, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
     }
     
@@ -93,7 +93,7 @@ export class QuerySet {
         }];
         let filtersToAdd = this.filtersState.addQueries(queries, true, true, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
     }
     
@@ -104,7 +104,7 @@ export class QuerySet {
     public unsubscribe(query: string): void {
         let filterToRemove = this.filtersState.removeQueries([query], this);
         if (filterToRemove) {
-            this.connection.send(JSON.stringify(filterToRemove));
+            this.connection.send(filterToRemove);
         }
     }
     
@@ -114,7 +114,7 @@ export class QuerySet {
     public unsubscribeAll(): void {
         let filter = this.filtersState.removeAllQueries(this);
         if (filter) {
-            this.connection.send(JSON.stringify(filter));
+            this.connection.send(filter);
         }
     }
     

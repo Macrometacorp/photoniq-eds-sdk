@@ -5,7 +5,7 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-import { Config, EDSEvent, Connection, ConnectionStatus, ConnectionProperties } from "./types";
+import { Config, EDSEvent, Connection, ConnectionStatus, ConnectionProperties, Filter } from "./types";
 import { QuerySet } from "./query-set";
 /**
  * The main class manages connection and queries.
@@ -22,7 +22,7 @@ export declare class ConnectionManager implements Connection {
     /**
      * Send data directly to web socket
      */
-    send(msg: string): void;
+    send(filter: Filter): void;
     querySet(): QuerySet;
     /**
      * Disconnect from web socket

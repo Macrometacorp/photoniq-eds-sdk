@@ -6,6 +6,7 @@ import {
     EDSEventError,
     EDSEventMessage,
     EDSEventType,
+    Filter,
     InternalConnection,
     PHOTONIQ_ES
 } from "../types";
@@ -121,7 +122,7 @@ export class WsConnection implements InternalConnection {
                         let filterToRemove = self.filtersState.tryToRemove(filterState, query);
 
                         if (filterToRemove) {
-                            self.send(JSON.stringify(filterToRemove));
+                            self.send(filterToRemove);
                         }
                     }
                 }
@@ -180,9 +181,9 @@ export class WsConnection implements InternalConnection {
         this.errorListener = listener;
     }
     
-    public send(msg: string): void {
+    public send(filter: Filter): void {
         if (this.status() === ConnectionStatus.Open) {
-            this.ws?.send(msg);
+            this.ws?.send(JSON.stringify(filter));
         }
     }
      

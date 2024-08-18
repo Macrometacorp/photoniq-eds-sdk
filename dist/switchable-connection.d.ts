@@ -1,25 +1,53 @@
-import { Config, InternalConnection, ConnectionStatus, ConnectionProperties } from "./types";
-import { FiltersState } from "./filters-state";
-export declare class SwitchableConnection implements InternalConnection {
+/**
+ * Copyright (C) Macrometa, Inc - All Rights Reserved
+ *
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ * Written by Macrometa, Inc <product@macrometa.com>, May 2024
+ */
+import { Config, ConnectionStatus, Filter, ConnectionProperties, EDSEvent, Connection } from "./types";
+import { QuerySet } from "./query-set";
+export declare class SwitchableConnection implements Connection {
     private readonly config;
     private readonly filtersState;
-    private openListener?;
-    private messageListener?;
-    private closeListener?;
-    private errorListener?;
     private connection?;
     private connectionTypes;
     private reconnection;
-    constructor(config: Config, filtersState: FiltersState);
+    constructor(config: Config, globalListener: (event: EDSEvent) => void);
+    /**
+     * Connect to Web Socket server
+     */
     connect(): void;
-    send(msg: string): void;
+    /**
+     * Send data directly to web socket
+     */
+    send(filter: Filter): void;
+    /**
+     * Disconnect from web socket
+     */
     disconnect(): void;
+    /**
+     * Get configuration of the connection
+     */
+    getConfig(): Config;
+    /**
+     * Check weather it connected
+     */
     status(): ConnectionStatus;
-    onOpen(listener: (event: any) => void): void;
-    onMessage(listener: (event: any) => void): void;
-    onClose(listener: (event: any) => void): void;
-    onError(listener: (event: any) => void): void;
+    /**
+     * Get connection id
+     */
     getId(): string | undefined;
+    /**
+     * Get property
+     */
     getProperty(name: string): string | undefined;
+    /**
+     * Get all properties
+     */
     getProperties(): ConnectionProperties;
+    /**
+     * Create Query Set
+     */
+    querySet(): QuerySet;
 }

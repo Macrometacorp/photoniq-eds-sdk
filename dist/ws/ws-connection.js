@@ -1,40 +1,26 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.WsConnection = void 0;
-const types_1 = require("../types");
-class WsConnection {
-    constructor(config, filterState) {
+import { ConnectionStatus, EDSEventType, PHOTONIQ_ES } from "../types";
+export class WsConnection {
+    constructor(config, filtersState) {
         this.STUB_FILTER = "%7B%22action%22%3A%22remove%22%2C%22queries%22%3A%5B%22SELECT%20%2A%20FROM%20fake%22%5D%7D";
         /**
          * Default timeoput of ping-pong requests in seconds
          */
         this.DEFAULT_PING_SECONDS = 29;
-        this.waitingMessages = [];
+        this.properties = {};
         this.config = config;
-        this.filterState = filterState;
+        this.filtersState = filtersState;
     }
     connect() {
         let self = this;
-        let filter;
-        if (this.waitingMessages.length) {
-            filter = encodeURIComponent(this.waitingMessages.shift());
-        }
-        else {
-            filter = this.STUB_FILTER;
-        }
         const url = `wss://${this.config.host}/api/es/v1/subscribe?type=collection` +
             `&x-customer-id=${this.config.customerId}` +
             `&apiKey=${this.config.apiKey}` +
             `&fabric=${this.config.fabric}` +
-            `&filters=${filter}`;
+            `&filters=${this.STUB_FILTER}`;
         this.ws = new WebSocket(url);
         this.ws.addEventListener('open', function (event) {
-            var _a, _b;
-            for (const message of self.waitingMessages) {
-                (_a = self.ws) === null || _a === void 0 ? void 0 : _a.send(message);
-            }
-            self.waitingMessages = [];
-            (_b = self.openListener) === null || _b === void 0 ? void 0 : _b.call(self, event);
+            var _a;
+            (_a = self.openListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
             self.updatePingInterval();
         });
         this.ws.addEventListener('message', function (event) {
@@ -62,38 +48,101 @@ class WsConnection {
     }
     handleMessage(event) {
         let self = this;
-        if (self.id) {
+        if (self.properties[PHOTONIQ_ES]) {
             let data = JSON.parse(event.data);
             if (!data.error) {
                 for (let query in data) {
                     let queryData = data[query];
-                    let filterToRemove = self.filterState.tryToRemove(query);
-                    if (filterToRemove) {
-                        self.send(JSON.stringify(filterToRemove));
-                    }
-                    let isInitialData = Array.isArray(queryData);
-                    if (isInitialData) {
-                        for (let i = 0; i < queryData.length; i++) {
-                            queryData[i] = self.convertInitialData(queryData[i]);
+                    let filterState = self.filtersState.filterForQuery(query);
+                    if (filterState) {
+                        self.filtersState.increment(filterState);
+                        let isInitialData = Array.isArray(queryData);
+                        if (isInitialData) {
+                            for (let i = 0; i < queryData.length; i++) {
+                                queryData[i] = self.convertInitialData(queryData[i]);
+                            }
                         }
-                    }
-                    else {
-                        queryData = [queryData];
+                        else {
+                            queryData = [queryData];
+                        }
+                        for (const querySetWithFilter of filterState.querySets) {
+                            if (isInitialData && !querySetWithFilter.initialData)
+                                continue;
+                            let edsEvent = {
+                                type: EDSEventType.Message,
+                                connection: self,
+                                data: queryData,
+                                query: query,
+                                count: querySetWithFilter.count,
+                                retrieve: isInitialData,
+                            };
+                            for (let callback of querySetWithFilter.callbacks) {
+                                try {
+                                    callback(edsEvent);
+                                }
+                                catch (e) {
+                                    let msg = `Error while handling data for query: ${query}`;
+                                    const edsEvent = {
+                                        type: EDSEventType.ClientQueryError,
+                                        connection: self,
+                                        data: e,
+                                        message: msg,
+                                        query: query
+                                    };
+                                    self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
+                                    //self.filtersState.handleGlobalListener(edsEvent);
+                                }
+                            }
+                        }
+                        let filterToRemove = self.filtersState.tryToRemove(filterState, query);
+                        if (filterToRemove) {
+                            self.send(filterToRemove);
+                        }
                     }
                 }
             }
-            return data;
+            else {
+                let msg = data.error;
+                const queryErrorPrefix = "Error parsing SQL query:";
+                if (msg.startsWith(queryErrorPrefix)) {
+                    let query = msg.substring(queryErrorPrefix.length, msg.indexOf("ERROR")).trim();
+                    const edsEvent = {
+                        type: EDSEventType.ServerQueryError,
+                        connection: self,
+                        data: undefined,
+                        code: data.code,
+                        message: msg,
+                        query: query
+                    };
+                    let filterState = self.filtersState.filterForQuery(query);
+                    if (filterState) {
+                        for (const querySetWithFilter of filterState.querySets) {
+                            self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
+                        }
+                    }
+                    //self.filtersState.handleGlobalListener(edsEvent);
+                }
+                else {
+                    const edsEvent = {
+                        type: EDSEventType.ServerGlobalError,
+                        connection: self,
+                        data: undefined,
+                        code: data.code,
+                        message: msg
+                    };
+                    self.filtersState.handleGlobalListener(edsEvent);
+                }
+            }
         }
         else {
-            // retrieve connection id
-            let msg = event.data;
-            const i = msg.indexOf(types_1.PHOTONIQ_ES);
-            if (i > -1) {
-                const start = i + types_1.PHOTONIQ_ES.length + 1;
-                const end = msg.indexOf("\n", start);
-                self.id = msg.substring(start, end).trim();
+            // retrieve properties
+            const lines = event.data.split("\n");
+            for (const line of lines) {
+                const keyValue = line.split(":");
+                if (keyValue.length == 2) {
+                    this.properties[keyValue[0].trim()] = keyValue[1].trim();
+                }
             }
-            return undefined;
         }
     }
     onClose(listener) {
@@ -105,10 +154,10 @@ class WsConnection {
     onError(listener) {
         this.errorListener = listener;
     }
-    send(msg) {
+    send(filter) {
         var _a;
-        if (this.status() === types_1.ConnectionStatus.Open) {
-            (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(msg);
+        if (this.status() === ConnectionStatus.Open) {
+            (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(JSON.stringify(filter));
         }
     }
     disconnect() {
@@ -119,17 +168,23 @@ class WsConnection {
         var _a;
         switch ((_a = this.ws) === null || _a === void 0 ? void 0 : _a.readyState) {
             case WebSocket.CONNECTING:
-                return types_1.ConnectionStatus.Connecting;
+                return ConnectionStatus.Connecting;
             case WebSocket.OPEN:
-                return types_1.ConnectionStatus.Open;
+                return ConnectionStatus.Open;
             case WebSocket.CLOSING:
-                return types_1.ConnectionStatus.Closing;
+                return ConnectionStatus.Closing;
             default:
-                return types_1.ConnectionStatus.Closed;
+                return ConnectionStatus.Closed;
         }
     }
     getId() {
-        return this.id;
+        return this.properties[PHOTONIQ_ES];
+    }
+    getProperty(name) {
+        return this.properties[name];
+    }
+    getProperties() {
+        return this.properties;
     }
     updatePingInterval() {
         var _a;
@@ -140,7 +195,10 @@ class WsConnection {
         let self = this;
         if (!self.config.pingSeconds || self.config.pingSeconds > 0) {
             this.pingIntervalId = setInterval(() => {
-                self.send("{1}");
+                var _a;
+                if (self.status() === ConnectionStatus.Open) {
+                    (_a = self.ws) === null || _a === void 0 ? void 0 : _a.send("{1}");
+                }
             }, ((_a = self.config.pingSeconds) !== null && _a !== void 0 ? _a : this.DEFAULT_PING_SECONDS) * 1000);
         }
     }
@@ -166,4 +224,3 @@ class WsConnection {
         return sqlData;
     }
 }
-exports.WsConnection = WsConnection;

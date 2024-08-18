@@ -1,4 +1,3 @@
-"use strict";
 /**
  * Copyright (C) Macrometa, Inc - All Rights Reserved
  *
@@ -6,13 +5,11 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.QuerySet = void 0;
-const query_batch_1 = require("./query-batch");
+import { QueryBatch } from "./query-batch";
 /**
  * Manages queries as a set
  */
-class QuerySet {
+export class QuerySet {
     /** @ignore */
     constructor(connection, filtersState) {
         this.connection = connection;
@@ -28,11 +25,12 @@ class QuerySet {
         let queries = [{
                 query: query,
                 listener: listener,
-                errorListener: errorListener
+                errorListener: errorListener,
+                compress: false
             }];
         let filtersToAdd = this.filtersState.addQueries(queries, false, false, false, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
     }
     /**
@@ -40,16 +38,18 @@ class QuerySet {
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    retrieveAndSubscribe(query, listener, errorListener) {
+    retrieveAndSubscribe(query, listener, errorListener, compress) {
         let queries = [{
                 query: query,
                 listener: listener,
-                errorListener: errorListener
+                errorListener: errorListener,
+                compress: compress === true
             }];
-        let filtersToAdd = this.filtersState.addQueries(queries, true, true, false, this);
+        let filtersToAdd = this.filtersState.addQueries(queries, true, false, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
     }
     /**
@@ -57,16 +57,18 @@ class QuerySet {
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of EDSEventMessage
      * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param compress compress initial data
      */
-    retrieve(query, listener, errorListener) {
+    retrieve(query, listener, errorListener, compress) {
         let queries = [{
                 query: query,
                 listener: listener,
-                errorListener: errorListener
+                errorListener: errorListener,
+                compress: compress === true
             }];
-        let filtersToAdd = this.filtersState.addQueries(queries, true, true, false, this);
+        let filtersToAdd = this.filtersState.addQueries(queries, true, true, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(JSON.stringify(filterToAdd));
+            this.connection.send(filterToAdd);
         }
     }
     /**
@@ -76,7 +78,7 @@ class QuerySet {
     unsubscribe(query) {
         let filterToRemove = this.filtersState.removeQueries([query], this);
         if (filterToRemove) {
-            this.connection.send(JSON.stringify(filterToRemove));
+            this.connection.send(filterToRemove);
         }
     }
     /**
@@ -85,14 +87,13 @@ class QuerySet {
     unsubscribeAll() {
         let filter = this.filtersState.removeAllQueries(this);
         if (filter) {
-            this.connection.send(JSON.stringify(filter));
+            this.connection.send(filter);
         }
     }
     /**
      * Create QueryBatch instance to join all queries in one request and assemble at the end.
      */
     batch() {
-        return new query_batch_1.QueryBatch(this, this.connection, this.filtersState);
+        return new QueryBatch(this, this.connection, this.filtersState);
     }
 }
-exports.QuerySet = QuerySet;

@@ -1,4 +1,11 @@
-import { ConnectionManager } from "./connection-manager";
+/**
+ * Copyright (C) Macrometa, Inc - All Rights Reserved
+ *
+ * Unauthorized copying of this file, via any medium is strictly prohibited
+ * Proprietary and confidential
+ * Written by Macrometa, Inc <product@macrometa.com>, May 2024
+ */
+
 import {QuerySet} from "./query-set";
 /**
  * @module Types
@@ -77,7 +84,7 @@ export type EDSEventMessage = {
 
 export interface Connection {
     connect(): void;
-    send(msg: string): void;
+    send(filter: Filter): void;
     disconnect(): void;
     status(): ConnectionStatus;
     getId(): string | undefined;

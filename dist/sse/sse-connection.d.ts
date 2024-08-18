@@ -1,4 +1,4 @@
-import { Config, InternalConnection, ConnectionStatus, ConnectionProperties } from "../types";
+import { Config, InternalConnection, ConnectionStatus, ConnectionProperties, Filter } from "../types";
 import { FiltersState } from "../filters-state";
 export declare class SseConnection implements InternalConnection {
     private readonly config;
@@ -11,7 +11,7 @@ export declare class SseConnection implements InternalConnection {
     private closeListener?;
     private errorListener?;
     constructor(config: Config, filtersState: FiltersState);
-    send(msg: string): void;
+    send(filter: Filter): void;
     /**
      * Connect to SSE server
      */
