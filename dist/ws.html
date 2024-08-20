@@ -16,13 +16,10 @@
                 let qs = connection.querySet();
                 qs
                     .batch()
-                    .subscribe("SELECT ssss FROM game_live WHERE _key='0012307019'", (event) => {
+                    .retrieveAndSubscribe("SELECT ssss FROM game_live WHERE _key='0012307019'", (event) => {
                         console.log(`ssss event: `, event);
-                    })
-                    .subscribe("SELECT aaaa FROM game_live WHERE _key='0012307019'", (event) => {
-                        console.log(`aaaa event: `, event);
-
-                    }).assemble();
+                    }, undefined, true)
+                    .assemble();
             }, 100);
 
         } else if (event.type === "connection-id") {

@@ -29,7 +29,6 @@ export class EventSource {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b, _c, _d, _e;
             try {
-                console.log("fetch");
                 const response = yield fetch(this.url, {
                     method: 'POST',
                     headers: this.headers,

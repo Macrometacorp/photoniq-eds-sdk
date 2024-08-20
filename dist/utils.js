@@ -10,6 +10,15 @@
  *
  *
  */
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 /**
  * Fix bug on EDS side when query `SELECT prop1.prop1_1, prop2.prop2_1 FROM Coll`
  * returns data as single string property { "prop1.prop1_1": 111, "prop2.prop2_1": 222 } for initial data
@@ -34,4 +43,31 @@ export function convertInitialData(sqlData) {
         delete sqlData[sqlParameter];
     }
     return sqlData;
+}
+export function tryToDecodeData(data) {
+    return __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve, reject) => {
+            try {
+                resolve(JSON.parse(data));
+            }
+            catch (e) {
+                try {
+                    decodeGzip(data).then(decoded => resolve(JSON.parse(decoded)));
+                }
+                catch (e2) {
+                    reject(e2);
+                }
+            }
+        });
+    });
+}
+function decodeGzip(encoded) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const gzipData = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+        const blob = new Blob([gzipData], { type: "application/octet-stream" });
+        const cs = new DecompressionStream("gzip");
+        const decompressedStream = blob.stream().pipeThrough(cs);
+        const response = yield new Response(decompressedStream);
+        return yield response.text();
+    });
 }

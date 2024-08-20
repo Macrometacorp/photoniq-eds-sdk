@@ -15,4 +15,4 @@
  * returns data as single string property { "prop1.prop1_1": 111, "prop2.prop2_1": 222 } for initial data
  */
 export declare function convertInitialData(sqlData: any): any;
-export declare function decodeGzip(encoded: string): Promise<string>;
+export declare function tryToDecodeData(data: string): Promise<any>;

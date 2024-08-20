@@ -79,8 +79,10 @@ export class QueryBatch {
      * Assemble list of queries to batch request
      */
     assemble() {
-        let filters = this.filtersState.addQueries(this.retrieveQueries, true, true, false, this.querySet);
-        let retrieveAndSubscribeFilters = this.filtersState.addQueries(this.retrieveAndSubscribeQueries, true, false, false, this.querySet);
+        let retrieveCompress = this.retrieveQueries.some(q => q.compress);
+        let filters = this.filtersState.addQueries(this.retrieveQueries, true, true, retrieveCompress, this.querySet);
+        let retrieveAndSubscribeCompress = this.retrieveAndSubscribeQueries.some(q => q.compress);
+        let retrieveAndSubscribeFilters = this.filtersState.addQueries(this.retrieveAndSubscribeQueries, true, false, retrieveAndSubscribeCompress, this.querySet);
         this.joinFilters(filters, retrieveAndSubscribeFilters);
         let subscribeFilters = this.filtersState.addQueries(this.subscribeQueries, false, false, false, this.querySet);
         this.joinFilters(filters, subscribeFilters);

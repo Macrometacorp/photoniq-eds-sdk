@@ -22,7 +22,6 @@ export class SwitchableConnection {
      */
     connect() {
         var _a;
-        console.log("switchable conn");
         if (this.connection)
             throw new Error(`Already connected with status: ${this.status()}`);
         if ((_a = this.config.connectionTypes) === null || _a === void 0 ? void 0 : _a.length) {
@@ -75,7 +74,6 @@ export class SwitchableConnection {
             self.connection = undefined;
             if (self.reconnection > -1) {
                 let millisToReconnect = Math.pow(2, 6 + self.reconnection++);
-                console.log("connect es");
                 setTimeout(function () {
                     self.connect();
                 }, millisToReconnect);

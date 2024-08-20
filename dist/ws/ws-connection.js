@@ -1,5 +1,5 @@
 import { ConnectionStatus, EDSEventType, PHOTONIQ_ES } from "../types";
-import { convertInitialData } from "../utils";
+import { convertInitialData, tryToDecodeData } from "../utils";
 export class WsConnection {
     constructor(config, filtersState) {
         this.STUB_FILTER = "%7B%22action%22%3A%22remove%22%2C%22queries%22%3A%5B%22SELECT%20%2A%20FROM%20fake%22%5D%7D";
@@ -50,90 +50,91 @@ export class WsConnection {
     handleMessage(event) {
         let self = this;
         if (self.properties[PHOTONIQ_ES]) {
-            let data = JSON.parse(event.data);
-            if (!data.error) {
-                for (let query in data) {
-                    let queryData = data[query];
-                    let filterState = self.filtersState.filterForQuery(query);
-                    if (filterState) {
-                        self.filtersState.increment(filterState);
-                        let isInitialData = Array.isArray(queryData);
-                        if (isInitialData) {
-                            for (let i = 0; i < queryData.length; i++) {
-                                queryData[i] = convertInitialData(queryData[i]);
-                            }
-                        }
-                        else {
-                            queryData = [queryData];
-                        }
-                        for (const querySetWithFilter of filterState.querySets) {
-                            if (isInitialData && !querySetWithFilter.initialData)
-                                continue;
-                            let edsEvent = {
-                                type: EDSEventType.Message,
-                                connection: self,
-                                data: queryData,
-                                query: query,
-                                count: querySetWithFilter.count,
-                                retrieve: isInitialData,
-                            };
-                            for (let callback of querySetWithFilter.callbacks) {
-                                try {
-                                    callback(edsEvent);
-                                }
-                                catch (e) {
-                                    let msg = `Error while handling data for query: ${query}`;
-                                    const edsEvent = {
-                                        type: EDSEventType.ClientQueryError,
-                                        connection: self,
-                                        data: e,
-                                        message: msg,
-                                        query: query
-                                    };
-                                    self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                                    //self.filtersState.handleGlobalListener(edsEvent);
+            tryToDecodeData(event.data).then(data => {
+                if (!data.error) {
+                    for (let query in data) {
+                        let queryData = data[query];
+                        let filterState = self.filtersState.filterForQuery(query);
+                        if (filterState) {
+                            self.filtersState.increment(filterState);
+                            let isInitialData = Array.isArray(queryData);
+                            if (isInitialData) {
+                                for (let i = 0; i < queryData.length; i++) {
+                                    queryData[i] = convertInitialData(queryData[i]);
                                 }
                             }
-                        }
-                        let filterToRemove = self.filtersState.tryToRemove(filterState, query);
-                        if (filterToRemove) {
-                            self.send(filterToRemove);
+                            else {
+                                queryData = [queryData];
+                            }
+                            for (const querySetWithFilter of filterState.querySets) {
+                                if (isInitialData && !querySetWithFilter.initialData)
+                                    continue;
+                                let edsEvent = {
+                                    type: EDSEventType.Message,
+                                    connection: self,
+                                    data: queryData,
+                                    query: query,
+                                    count: querySetWithFilter.count,
+                                    retrieve: isInitialData,
+                                };
+                                for (let callback of querySetWithFilter.callbacks) {
+                                    try {
+                                        callback(edsEvent);
+                                    }
+                                    catch (e) {
+                                        let msg = `Error while handling data for query: ${query}`;
+                                        const edsEvent = {
+                                            type: EDSEventType.ClientQueryError,
+                                            connection: self,
+                                            data: e,
+                                            message: msg,
+                                            query: query
+                                        };
+                                        self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
+                                        //self.filtersState.handleGlobalListener(edsEvent);
+                                    }
+                                }
+                            }
+                            let filterToRemove = self.filtersState.tryToRemove(filterState, query);
+                            if (filterToRemove) {
+                                self.send(filterToRemove);
+                            }
                         }
                     }
-                }
-            }
-            else {
-                let msg = data.error;
-                const queryErrorPrefix = "Error parsing SQL query:";
-                if (msg.startsWith(queryErrorPrefix)) {
-                    let query = msg.substring(queryErrorPrefix.length, msg.indexOf("ERROR")).trim();
-                    const edsEvent = {
-                        type: EDSEventType.ServerQueryError,
-                        connection: self,
-                        data: undefined,
-                        code: data.code,
-                        message: msg,
-                        query: query
-                    };
-                    let filterState = self.filtersState.filterForQuery(query);
-                    if (filterState) {
-                        for (const querySetWithFilter of filterState.querySets) {
-                            self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                        }
-                    }
-                    //self.filtersState.handleGlobalListener(edsEvent);
                 }
                 else {
-                    const edsEvent = {
-                        type: EDSEventType.ServerGlobalError,
-                        connection: self,
-                        data: undefined,
-                        code: data.code,
-                        message: msg
-                    };
-                    self.filtersState.handleGlobalListener(edsEvent);
+                    let msg = data.error;
+                    const queryErrorPrefix = "Error parsing SQL query:";
+                    if (msg.startsWith(queryErrorPrefix)) {
+                        let query = msg.substring(queryErrorPrefix.length, msg.indexOf("ERROR")).trim();
+                        const edsEvent = {
+                            type: EDSEventType.ServerQueryError,
+                            connection: self,
+                            data: undefined,
+                            code: data.code,
+                            message: msg,
+                            query: query
+                        };
+                        let filterState = self.filtersState.filterForQuery(query);
+                        if (filterState) {
+                            for (const querySetWithFilter of filterState.querySets) {
+                                self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
+                            }
+                        }
+                        //self.filtersState.handleGlobalListener(edsEvent);
+                    }
+                    else {
+                        const edsEvent = {
+                            type: EDSEventType.ServerGlobalError,
+                            connection: self,
+                            data: undefined,
+                            code: data.code,
+                            message: msg
+                        };
+                        self.filtersState.handleGlobalListener(edsEvent);
+                    }
                 }
-            }
+            });
         }
         else {
             // retrieve properties

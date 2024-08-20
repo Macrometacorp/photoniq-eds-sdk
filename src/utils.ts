@@ -38,7 +38,22 @@ export function convertInitialData(sqlData: any) {
     return sqlData;
 }
 
-export async function decodeGzip (encoded:string) {
+
+export async function tryToDecodeData (data: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+        try {
+            resolve(JSON.parse(data));
+        } catch (e) {
+            try {
+                decodeGzip(data).then( decoded => resolve(JSON.parse(decoded)));
+            } catch (e2) {
+                reject(e2);
+            }
+        }
+    });
+}
+
+async function decodeGzip (encoded:string) {
     const gzipData = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
     const blob = new Blob([gzipData], { type: "application/octet-stream" });
     const cs = new DecompressionStream("gzip");
