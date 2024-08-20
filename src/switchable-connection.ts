@@ -57,7 +57,7 @@ export class SwitchableConnection implements Connection {
                     connection: self,
                     data: event
                 };
-                self.filtersState.handleGlobalListener(event);
+                self.filtersState.handleGlobalListener(edsEvent);
             }
             
             // send current subscribed filters.

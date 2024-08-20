@@ -1,4 +1,4 @@
-import { Config, InternalConnection, ConnectionStatus, ConnectionProperties, Filter } from "../types";
+import { Config, ConnectionProperties, ConnectionStatus, Filter, InternalConnection } from "../types";
 import { FiltersState } from "../filters-state";
 export declare class SseConnection implements InternalConnection {
     private readonly config;
@@ -6,6 +6,7 @@ export declare class SseConnection implements InternalConnection {
     private readonly url;
     private readonly headers;
     private eventSource?;
+    private opened;
     private openListener?;
     private messageListener?;
     private closeListener?;
@@ -28,5 +29,4 @@ export declare class SseConnection implements InternalConnection {
     getProperty(name: string): string | undefined;
     getProperties(): ConnectionProperties;
     private handleMessage;
-    private convertInitialData;
 }

@@ -11,6 +11,7 @@ import {
     PHOTONIQ_ES
 } from "../types";
 import {FiltersState} from "../filters-state";
+import { convertInitialData } from "../utils";
 
 export class WsConnection implements InternalConnection {
     
@@ -85,7 +86,7 @@ export class WsConnection implements InternalConnection {
                         let isInitialData = Array.isArray(queryData);
                         if (isInitialData) {
                             for (let i = 0; i < queryData.length; i++) {
-                                queryData[i] = self.convertInitialData(queryData[i]);
+                                queryData[i] = convertInitialData(queryData[i]);
                             }
                         } else {
                             queryData = [queryData];
@@ -229,28 +230,6 @@ export class WsConnection implements InternalConnection {
                 }
             }, (self.config.pingSeconds ?? this.DEFAULT_PING_SECONDS) * 1000);
         }
-    }
-    
-    private convertInitialData(sqlData: any) {
-        for (let sqlParameter in sqlData) {
-            let path = sqlParameter.split('.');
-            if (path.length <= 1) {
-                continue;
-            }
-            let value = sqlData;
-            for (let i = 0; i < path.length; i++) {
-                if (value[path[i]] === undefined) {
-                    value[path[i]] = {};
-                }
-                // if not last
-                if (i < path.length - 1) {
-                    value = value[path[i]];
-                }
-            }
-            value[path[path.length - 1]] = sqlData[sqlParameter];
-            delete sqlData[sqlParameter];
-        }
-        return sqlData;
     }
     
 }

@@ -29,5 +29,4 @@ export declare class WsConnection implements InternalConnection {
     getProperty(name: string): string | undefined;
     getProperties(): ConnectionProperties;
     private updatePingInterval;
-    private convertInitialData;
 }

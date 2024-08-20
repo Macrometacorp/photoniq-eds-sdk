@@ -1,9 +1,9 @@
-import {ConnectionProperties, EDSEvent } from "../types";
+import { ConnectionProperties } from "../types";
 
 export class EventSource {
-    //private xhr: XMLHttpRequest;
-    private url: string;
-    private headers: HeadersInit;
+
+    private readonly url: string;
+    private readonly headers: HeadersInit;
     private properties: ConnectionProperties = {};
     private reader?: ReadableStreamDefaultReader<Uint8Array>;
     private openListener?: (event: any) => void;
@@ -86,6 +86,7 @@ export class EventSource {
                     }
                 }
             }
+            this.closeListener?.("Connection closed");
         } catch (error) {
             this.errorListener?.(error);
         }

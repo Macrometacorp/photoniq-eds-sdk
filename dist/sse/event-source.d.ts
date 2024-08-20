@@ -1,7 +1,7 @@
 import { ConnectionProperties } from "../types";
 export declare class EventSource {
-    private url;
-    private headers;
+    private readonly url;
+    private readonly headers;
     private properties;
     private reader?;
     private openListener?;

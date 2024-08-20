@@ -1,8 +1,10 @@
 import { EDSEventType, ConnectionStatus, PHOTONIQ_ES } from "../types";
 import { EventSource } from "./event-source";
 import { FALSE, TRUE } from "../filters-state";
+import { convertInitialData } from "../utils";
 export class SseConnection {
     constructor(config, filtersState) {
+        this.opened = false;
         this.config = config;
         this.filtersState = filtersState;
         this.url = `https://${this.config.host}/api/es/sse/v1/subscribe`;
@@ -13,66 +15,38 @@ export class SseConnection {
         };
     }
     send(filter) {
+        if (filter && this.opened) {
+            this.disconnect();
+            let filters = this.filtersState.activeFilters();
+            console.log("sent message to subscribe");
+            this.retrieve(filters);
+        }
     }
     /**
      * Connect to SSE server
      */
     connect() {
-        let filters = this.filtersState.activeFilters();
-        this.retrieve(filters);
-        /*const url: string = `https://${this.config.host}/api/es/sse/v1/subscribe`;
-        let data = {
-            "type": "collection",
-            "fabric": "_system",
-            "filters": {
-                "once": "FALSE",
-                "compress": "FALSE",
-                "initialData":"TRUE",
-                "queries": ["select * from box_trim where attendance=4"]
-            }
-        };
-        
-        this.sseSubscribe = new EventSource(url, {
-            'Content-Type': 'application/json',
-            'Authorization': `${this.config.apiKey}`,
-            'x-customer-id': `${this.config.customerId}`,
-        });*/
-        //let self = this;
-        //this.sseSubscribe.onOpen = (event: any) => {
-        //    console.log('Connection to SSE server opened.', event);
-        /*const edsEvent: EDSEvent = {
-            type: EDSEventType.Open,
-            connection: self,
-            data: event
-        };
-        self.handleGlobalListener(edsEvent);*/
-        //};
-        //this.sseSubscribe.onMessage((event: any) => {
-        //    console.log('Received event:', event);
-        /*const edsEvent: EDSEvent = {
-            type: EDSEventType.Message,
-            connection: self,
-            data: event
-        };
-        self.handleGlobalListener(edsEvent);*/
-        //});
-        //this.sseSubscribe.onError = (event: any) => {
-        //    console.error('Error occurred:', event);
-        /*const edsEvent: EDSEvent = {
-            type: EDSEventType.ClientGlobalError,
-            connection: self,
-            data: event
-        };
-        self.handleGlobalListener(edsEvent);*/
-        //};
-        //this.sseSubscribe.connect(data);
+        var _a;
+        // it establishes virtual connection.
+        if (this.opened)
+            throw Error("SSE connection already opened");
+        this.opened = true;
+        console.log("SSE open");
+        (_a = this.openListener) === null || _a === void 0 ? void 0 : _a.call(this, "SSE connection opened");
     }
     retrieve(filters) {
+        var _a;
+        if (!this.opened) {
+            this.opened = true;
+            console.log("SSE open");
+            (_a = this.openListener) === null || _a === void 0 ? void 0 : _a.call(this, "SSE connection opened");
+        }
         let queries = filters
             .filter(f => f.initialData === TRUE)
             .map(f => f.queries)
             .reduce((acc, tags) => acc.concat(tags), []);
         if (!queries.length) {
+            this.subscribe(filters);
             return;
         }
         let data = {
@@ -105,6 +79,12 @@ export class SseConnection {
         this.eventSource.connect(data);
     }
     subscribe(filters) {
+        var _a;
+        if (!this.opened) {
+            this.opened = true;
+            console.log("SSE open");
+            (_a = this.openListener) === null || _a === void 0 ? void 0 : _a.call(this, "SSE connection opened");
+        }
         let queries = filters
             .filter(f => f.once !== TRUE)
             .map(f => f.queries)
@@ -134,6 +114,15 @@ export class SseConnection {
         });
         this.eventSource.onMessage((message) => {
             self.handleMessage(message);
+        });
+        this.eventSource.onClose((event) => {
+            var _a;
+            console.log("close es");
+            if (this.opened) {
+                this.opened = false;
+                console.log("SSE close");
+                (_a = self.closeListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
+            }
         });
         this.eventSource.connect(data);
     }
@@ -178,7 +167,7 @@ export class SseConnection {
                     let isInitialData = Array.isArray(queryData);
                     if (isInitialData) {
                         for (let i = 0; i < queryData.length; i++) {
-                            queryData[i] = this.convertInitialData(queryData[i]);
+                            queryData[i] = convertInitialData(queryData[i]);
                         }
                     }
                     else {
@@ -251,26 +240,5 @@ export class SseConnection {
             }
         }
         return false;
-    }
-    convertInitialData(sqlData) {
-        for (let sqlParameter in sqlData) {
-            let path = sqlParameter.split('.');
-            if (path.length <= 1) {
-                continue;
-            }
-            let value = sqlData;
-            for (let i = 0; i < path.length; i++) {
-                if (value[path[i]] === undefined) {
-                    value[path[i]] = {};
-                }
-                // if not last
-                if (i < path.length - 1) {
-                    value = value[path[i]];
-                }
-            }
-            value[path[path.length - 1]] = sqlData[sqlParameter];
-            delete sqlData[sqlParameter];
-        }
-        return sqlData;
     }
 }

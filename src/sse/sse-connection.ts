@@ -1,17 +1,18 @@
 import {
     Config,
-    EDSEvent,
-    EDSEventType,
-    InternalConnection,
-    ConnectionStatus,
-    EDSEventMessage,
-    EDSEventError,
-    PHOTONIQ_ES,
     ConnectionProperties,
-    Filter
+    ConnectionStatus,
+    EDSEvent,
+    EDSEventError,
+    EDSEventMessage,
+    EDSEventType,
+    Filter,
+    InternalConnection,
+    PHOTONIQ_ES
 } from "../types";
-import { EventSource } from "./event-source"
+import {EventSource} from "./event-source"
 import {FALSE, FiltersState, TRUE} from "../filters-state";
+import {convertInitialData} from "../utils";
 
 export class SseConnection implements InternalConnection {
     private readonly config: Config;
@@ -19,6 +20,7 @@ export class SseConnection implements InternalConnection {
     private readonly url: string;
     private readonly headers: HeadersInit;
     private eventSource?: EventSource;
+    private opened: boolean = false;
     
     private openListener?: (type: any) => void;
     private messageListener?: (type: any) => void;
@@ -37,7 +39,7 @@ export class SseConnection implements InternalConnection {
     }
     
     send(filter: Filter): void {
-        if (filter) {
+        if (filter && this.opened) {
             this.disconnect();
             let filters = this.filtersState.activeFilters();
             this.retrieve(filters);
@@ -48,72 +50,25 @@ export class SseConnection implements InternalConnection {
      * Connect to SSE server
      */
      public connect(): void {
-
-         let filters = this.filtersState.activeFilters();
-
-         this.retrieve(filters);
-
-
-         /*const url: string = `https://${this.config.host}/api/es/sse/v1/subscribe`;
-         let data = {
-             "type": "collection",
-             "fabric": "_system",
-             "filters": {
-                 "once": "FALSE",
-                 "compress": "FALSE",
-                 "initialData":"TRUE",
-                 "queries": ["select * from box_trim where attendance=4"]
-             }
-         };
-         
-         this.sseSubscribe = new EventSource(url, {
-             'Content-Type': 'application/json',
-             'Authorization': `${this.config.apiKey}`,
-             'x-customer-id': `${this.config.customerId}`,
-         });*/
-         
-         //let self = this;
-         //this.sseSubscribe.onOpen = (event: any) => {
-         //    console.log('Connection to SSE server opened.', event);
-             /*const edsEvent: EDSEvent = {
-                 type: EDSEventType.Open,
-                 connection: self,
-                 data: event
-             };
-             self.handleGlobalListener(edsEvent);*/
-         //};
-     
-         //this.sseSubscribe.onMessage((event: any) => {
-         //    console.log('Received event:', event);
-
-
-             /*const edsEvent: EDSEvent = {
-                 type: EDSEventType.Message,
-                 connection: self,
-                 data: event
-             };
-             self.handleGlobalListener(edsEvent);*/
-         //});
-     
-         //this.sseSubscribe.onError = (event: any) => {
-         //    console.error('Error occurred:', event);
-             /*const edsEvent: EDSEvent = {
-                 type: EDSEventType.ClientGlobalError,
-                 connection: self,
-                 data: event
-             };
-             self.handleGlobalListener(edsEvent);*/
-         //};
-
-         //this.sseSubscribe.connect(data);
+         // it establishes virtual connection.
+         if (this.opened) throw Error("SSE connection already opened");
+         this.opened = true;
+         this.openListener?.("SSE connection opened");
      }
 
      private retrieve(filters: Filter[]) {
+
+         if (!this.opened) {
+             this.opened = true;
+             this.openListener?.("SSE connection opened");
+         }
+
          let queries = filters
              .filter(f => f.initialData === TRUE)
              .map(f => f.queries)
              .reduce((acc, tags) => acc.concat(tags), []);
          if (!queries.length) {
+             this.subscribe(filters);
              return;
          }
          let data = {
@@ -146,6 +101,12 @@ export class SseConnection implements InternalConnection {
      }
 
      private subscribe(filters: Filter[]) {
+
+         if (!this.opened) {
+             this.opened = true;
+             this.openListener?.("SSE connection opened");
+         }
+
          let queries = filters
              .filter(f => f.once !== TRUE)
              .map(f => f.queries)
@@ -176,6 +137,12 @@ export class SseConnection implements InternalConnection {
          this.eventSource.onMessage((message) => {
              self.handleMessage(message);
          });
+         this.eventSource.onClose((event: any) => {
+             if (this.opened) {
+                 this.opened = false;
+                 self.closeListener?.(event);
+             }
+         });
          this.eventSource.connect(data);
      }
      
@@ -196,7 +163,7 @@ export class SseConnection implements InternalConnection {
      }
      
      public status(): ConnectionStatus {
-         return ConnectionStatus.Closed;
+         return this.opened ? ConnectionStatus.Open: ConnectionStatus.Closed;
      }
      
      public disconnect(): void {
@@ -229,7 +196,7 @@ export class SseConnection implements InternalConnection {
                      let isInitialData = Array.isArray(queryData);
                      if (isInitialData) {
                          for (let i = 0; i < queryData.length; i++) {
-                             queryData[i] = this.convertInitialData(queryData[i]);
+                             queryData[i] = convertInitialData(queryData[i]);
                          }
                      } else {
                          queryData = [queryData];
@@ -302,25 +269,5 @@ export class SseConnection implements InternalConnection {
          return false;
      }
 
-     private convertInitialData(sqlData: any) {
-         for (let sqlParameter in sqlData) {
-             let path = sqlParameter.split('.');
-             if (path.length <= 1) {
-                 continue;
-             }
-             let value = sqlData;
-             for (let i = 0; i < path.length; i++) {
-                 if (value[path[i]] === undefined) {
-                     value[path[i]] = {};
-                 }
-                 // if not last
-                 if (i < path.length - 1) {
-                     value = value[path[i]];
-                 }
-             }
-             value[path[path.length - 1]] = sqlData[sqlParameter];
-             delete sqlData[sqlParameter];
-         }
-         return sqlData;
-     }
+
 }

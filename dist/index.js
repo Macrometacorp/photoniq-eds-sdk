@@ -13,8 +13,7 @@ import { SwitchableConnection } from "./switchable-connection";
  * @module connection
  */
 export function create(config, globalListener) {
-    let connection = new SwitchableConnection(config, globalListener);
-    return connection;
+    return new SwitchableConnection(config, globalListener);
 }
 /**
  * Create a new connection innstance and establish connection to PhotonIQ EDS server.

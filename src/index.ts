@@ -16,9 +16,8 @@ import {SwitchableConnection} from "./switchable-connection";
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export function create(config: Config, globalListener: (type: EDSEvent) => void): SwitchableConnection {
-    let connection = new SwitchableConnection(config, globalListener);
-    return connection;
+export function create(config: Config, globalListener: (type: EDSEvent) => void): Connection {
+    return new SwitchableConnection(config, globalListener);
 }
 
 /**
@@ -27,7 +26,7 @@ export function create(config: Config, globalListener: (type: EDSEvent) => void)
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export function connect(config: Config, globalListener: (type: EDSEvent) => void): SwitchableConnection {
+export function connect(config: Config, globalListener: (type: EDSEvent) => void): Connection {
     let connection = new SwitchableConnection(config, globalListener);
     connection.connect();
     return connection;

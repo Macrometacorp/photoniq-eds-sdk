@@ -27,8 +27,9 @@ export class EventSource {
     }
     connect(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d;
+            var _a, _b, _c, _d, _e;
             try {
+                console.log("fetch");
                 const response = yield fetch(this.url, {
                     method: 'POST',
                     headers: this.headers,
@@ -80,9 +81,10 @@ export class EventSource {
                         }
                     }
                 }
+                (_d = this.closeListener) === null || _d === void 0 ? void 0 : _d.call(this, "Connection closed");
             }
             catch (error) {
-                (_d = this.errorListener) === null || _d === void 0 ? void 0 : _d.call(this, error);
+                (_e = this.errorListener) === null || _e === void 0 ? void 0 : _e.call(this, error);
             }
         });
     }

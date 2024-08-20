@@ -5,19 +5,18 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-import { Config, EDSEvent } from "./types";
-import { SwitchableConnection } from "./switchable-connection";
+import { Config, EDSEvent, Connection } from "./types";
 /**
  * Create a new connection innstance.
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export declare function create(config: Config, globalListener: (type: EDSEvent) => void): SwitchableConnection;
+export declare function create(config: Config, globalListener: (type: EDSEvent) => void): Connection;
 /**
  * Create a new connection innstance and establish connection to PhotonIQ EDS server.
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
  * @module connection
  */
-export declare function connect(config: Config, globalListener: (type: EDSEvent) => void): SwitchableConnection;
+export declare function connect(config: Config, globalListener: (type: EDSEvent) => void): Connection;

@@ -1,4 +1,5 @@
 import { ConnectionStatus, EDSEventType, PHOTONIQ_ES } from "../types";
+import { convertInitialData } from "../utils";
 export class WsConnection {
     constructor(config, filtersState) {
         this.STUB_FILTER = "%7B%22action%22%3A%22remove%22%2C%22queries%22%3A%5B%22SELECT%20%2A%20FROM%20fake%22%5D%7D";
@@ -59,7 +60,7 @@ export class WsConnection {
                         let isInitialData = Array.isArray(queryData);
                         if (isInitialData) {
                             for (let i = 0; i < queryData.length; i++) {
-                                queryData[i] = self.convertInitialData(queryData[i]);
+                                queryData[i] = convertInitialData(queryData[i]);
                             }
                         }
                         else {
@@ -201,26 +202,5 @@ export class WsConnection {
                 }
             }, ((_a = self.config.pingSeconds) !== null && _a !== void 0 ? _a : this.DEFAULT_PING_SECONDS) * 1000);
         }
-    }
-    convertInitialData(sqlData) {
-        for (let sqlParameter in sqlData) {
-            let path = sqlParameter.split('.');
-            if (path.length <= 1) {
-                continue;
-            }
-            let value = sqlData;
-            for (let i = 0; i < path.length; i++) {
-                if (value[path[i]] === undefined) {
-                    value[path[i]] = {};
-                }
-                // if not last
-                if (i < path.length - 1) {
-                    value = value[path[i]];
-                }
-            }
-            value[path[path.length - 1]] = sqlData[sqlParameter];
-            delete sqlData[sqlParameter];
-        }
-        return sqlData;
     }
 }
