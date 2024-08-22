@@ -31,6 +31,7 @@ export type Config = {
     apiKey: string;
     fabric?: string;
     connectionTypes?: string[];
+    autoReconnect?: boolean;
     pingSeconds?: number;
 };
 

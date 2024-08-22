@@ -18,7 +18,7 @@ npm run release
 ## Example
 
 ```JavaScript
-let connection = PhotoniqEdsWs.connect({
+let connection = PhotoniqEdsSdk.connect({
     host: "nbapoc.photoniq.macrometa.io",
     customerId: "<your_customer_id>",
     apiKey: "<your_api_key>",
@@ -70,7 +70,7 @@ npx tsc
 2. Link the module in another project by the next command:
 
 ```
-npm link ../photoniq-eds-ws
+npm link ../photoniq-eds-sdk
 ```
 
 3. Add dependency in the project:
@@ -78,7 +78,7 @@ npm link ../photoniq-eds-ws
 - Vue Example:
 ```
 <script>
-import { connect } from 'photoniq-eds-ws';
+import { connect } from 'photoniq-eds-sdk';
 
 export default {
   name: 'App',

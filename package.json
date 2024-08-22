@@ -1,5 +1,5 @@
 {
-  "name": "photoniq-eds-ws",
+  "name": "photoniq-eds-sdk",
   "version": "0.1.0",
   "description": "Web Socket Driver for the PhotonIQ EDS",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Macrometacorp/photoniq-eds-ws.git"
+    "url": "git+https://github.com/Macrometacorp/photoniq-eds-sdk.git"
   },
   "keywords": [
     "eds",
@@ -27,7 +27,7 @@
   ],
   "author": "Macrometa, Dmytro Lazarenko <dmytro.lazarenko@macrometa.com>",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Macrometacorp/photoniq-eds-ws#readme",
+  "homepage": "https://github.com/Macrometacorp/photoniq-eds-sdk#readme",
   "devDependencies": {
     "@types/lodash": "^4.17.1",
     "ts-loader": "^9.5.1",

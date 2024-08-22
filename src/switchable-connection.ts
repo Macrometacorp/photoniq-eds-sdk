@@ -82,13 +82,13 @@ export class SwitchableConnection implements Connection {
         });
         this.connection.onClose(function (event) {
             self.connection = undefined;
-            if (self.reconnection > -1) {
+            if (self.config.autoReconnect !== false && self.reconnection > -1) {
                 let millisToReconnect = Math.pow(2, 6 + self.reconnection++);
                 setTimeout(function() {
                     self.connect();
                 }, millisToReconnect);
             } else {
-                self.reconnection = 0;
+                self.reconnection = -1;
                 const edsEvent: EDSEvent = {
                     type: EDSEventType.Close,
                     connection: self,

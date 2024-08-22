@@ -5,7 +5,7 @@
     <title>SSE Connection Test</title>
 </head>
 <body>
-<script src="photoniq-eds-ws.js"></script>
+<script src="photoniq-eds-sdk.js"></script>
 <script>
 
     let globalListener = function(event) {
@@ -28,7 +28,7 @@
         }
     };
 
-    let connection = PhotoniqEdsWs.connect({
+    let connection = PhotoniqEdsSdk.connect({
         host: "eds32-us-west.eng.macrometa.io",
         customerId: "cust-edsgdn",
         apiKey: "ptq_21mYB1MFWrd_2bfw3CseStzVZtLKCyFWo2TqrJDUrTuFs",

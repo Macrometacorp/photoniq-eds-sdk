@@ -5,22 +5,22 @@
     <title>Getting Started</title>
 </head>
 <body>
-<script src="photoniq-eds-ws.js"></script>
+<script src="photoniq-eds-sdk.js"></script>
 <script>
 
     let globalListener = function(event) {
         if (event.type === "open") {
             console.log('EDS connection established: ', event);
 
-            setTimeout(function () {
+            /*setTimeout(function () {
                 let qs = connection.querySet();
                 qs
                     .batch()
-                    .retrieveAndSubscribe("SELECT ssss FROM game_live WHERE _key='0012307019'", (event) => {
+                    .subscribe("SELECT ssss FROM game_live WHERE _key='0012307019'", (event) => {
                         console.log(`ssss event: `, event);
                     }, undefined, true)
                     .assemble();
-            }, 100);
+            }, 100);*/
 
         } else if (event.type === "connection-id") {
             console.log("EDS assigned connection's ID: " + event.data);
@@ -40,21 +40,23 @@
     };
 
     let second = false;
-    let connection = PhotoniqEdsWs.connect({
-    host: "nbapoc.photoniq.macrometa.io",
-    customerId: "nba_admin",
-    apiKey: "ptq_MV6VuirCMDz_Kyejc8NLmVFKeVx8XxhYWw3mCVKMP3v2p",
-    fabric: "dev_courtside",
+    let connection = PhotoniqEdsSdk.connect({
+        host: "nbapoc.photoniq.macrometa.io",
+        customerId: "nba_admin",
+        apiKey: "ptq_MV6VuirCMDz_Kyejc8NLmVFKeVx8XxhYWw3mCVKMP3v2p",
+        fabric: "dev_courtside",
+        connectionTypes: ["ws"]
     }, globalListener);
     
+    let qs = connection.querySet();
 
 
     // default usage
 
 
-    /*qs.subscribe("SELECT aaaa FROM game_live WHERE _key='0012307019'", (event) => {
+    qs.retrieveAndSubscribe("SELECT aaaa FROM game_live WHERE _key='0012307019'", (event) => {
         console.log(`aaaa event: `, event);
-    })*/
+    })
 
     /*setTimeout(function () {
         //connection.disconnect();

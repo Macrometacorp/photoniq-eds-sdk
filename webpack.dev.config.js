@@ -3,9 +3,9 @@ const path = require('path');
 module.exports = {
     entry: './src/index.ts',
     output: {
-        filename: 'photoniq-eds-ws.js',
+        filename: 'photoniq-eds-sdk.js',
         path: path.resolve(__dirname, 'dist'),
-        library: 'PhotoniqEdsWs',
+        library: 'PhotoniqEdsSdk',
         libraryTarget: 'umd',
         globalObject: 'this',
     },
