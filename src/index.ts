@@ -6,14 +6,15 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 
-import _ from 'lodash';
 import { Config, EDSEvent, Connection } from "./types";
-import {SwitchableConnection} from "./switchable-connection";
+import { SwitchableConnection } from "./switchable-connection";
 
 /**
- * Create a new connection innstance.
+ * Create a new `Connection` instance.
+ *
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
+ * @return `Connection` instance.
  * @module connection
  */
 export function create(config: Config, globalListener: (type: EDSEvent) => void): Connection {
@@ -21,9 +22,11 @@ export function create(config: Config, globalListener: (type: EDSEvent) => void)
 }
 
 /**
- * Create a new connection innstance and establish connection to PhotonIQ EDS server.
+ * Create a new `Connection` instance and establish connection to PhotonIQ EDS.
+ *
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
+ * @return `Connection` instance.
  * @module connection
  */
 export function connect(config: Config, globalListener: (type: EDSEvent) => void): Connection {

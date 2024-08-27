@@ -7,8 +7,8 @@
  */
 
 import { Query, QuerySet } from "./query-set";
-import {FiltersState} from "./filters-state";
-import {EDSEvent, Filter } from "./types";
+import { FiltersState } from "./filters-state";
+import { EDSEvent, Filter } from "./types";
 import { SwitchableConnection } from "./switchable-connection";
 
 /**

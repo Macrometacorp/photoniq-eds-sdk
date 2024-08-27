@@ -2,16 +2,13 @@ import {
     Config,
     ConnectionProperties,
     ConnectionStatus,
-    EDSEvent,
-    EDSEventError,
-    EDSEventMessage,
-    EDSEventType,
     Filter,
+    FilterState,
     InternalConnection,
-    PHOTONIQ_ES
+    PHOTONIQ_ES,
 } from "../types";
-import {FiltersState} from "../filters-state";
-import {convertInitialData, tryToDecodeData} from "../utils";
+import { FiltersState } from "../filters-state";
+import { tryToDecodeData } from "../utils";
 
 export class WsConnection implements InternalConnection {
     
@@ -24,9 +21,10 @@ export class WsConnection implements InternalConnection {
     private config: Config;
     private filtersState: FiltersState;
     private openListener?: (type: any) => void;
-    private messageListener?: (type: any) => void;
+    private propertiesListener?: (type: any) => void;
+    private messageListener?: (query: string, filterState: FilterState, data: any) => void;
     private closeListener?: (type: any) => void;
-    private errorListener?: (type: any) => void;
+    private errorListener?: (event: any, server: boolean) => void;
     private ws: WebSocket | undefined;
     private pingIntervalId: number | undefined;
     private properties: ConnectionProperties = {};
@@ -43,137 +41,81 @@ export class WsConnection implements InternalConnection {
             `&apiKey=${this.config.apiKey}` +
             `&fabric=${this.config.fabric}` +
             `&filters=${this.STUB_FILTER}`;
+
         this.ws = new WebSocket(url);
+
         this.ws.addEventListener('open', function(event) {
             self.openListener?.(event);
-            self.updatePingInterval();
-        });
-        this.ws.addEventListener('message', function(event) {
-            let message = self.handleMessage(event);
-            if (message) {
-                self.messageListener?.(message);
+
+            // send current subscribed filters.
+            let filters = self.filtersState.activeFilters();
+            for (const filter of filters) {
+                self.send(filter);
             }
+
             self.updatePingInterval();
         });
-        this.ws.addEventListener('close', function(event) {
-            self.closeListener?.(event); 
+
+        this.ws.addEventListener('message', function(event) {
+            if (self.properties[PHOTONIQ_ES]) {
+                tryToDecodeData(event.data).then( data => {
+                    if (!data.error) {
+                        for (let query in data) {
+                            let queryData = data[query];
+                            let filterState = self.filtersState.filterForQuery(query);
+                            if (filterState) {
+
+                                self.filtersState.increment(filterState);
+
+                                self.messageListener?.(query, filterState, queryData);
+
+                                let filterToRemove = self.filtersState.tryToRemove(filterState, query);
+
+                                if (filterToRemove) {
+                                    self.send(filterToRemove);
+                                }
+                            }
+                        }
+                    } else {
+                        self.errorListener?.(data, true);
+                    }
+                });
+            } else {
+                // retrieve properties
+                const lines = event.data.split("\n");
+                for (const line of lines) {
+                    const keyValue = line.split(":");
+                    if (keyValue.length == 2) {
+                        self.properties[keyValue[0].trim()] = keyValue[1].trim();
+                    }
+                }
+                self.propertiesListener?.(self.properties);
+            }
+
+            self.updatePingInterval();
         });
+
+        this.ws.addEventListener('close', function(event) {
+            self.closeListener?.(event);
+        });
+
         this.ws.addEventListener('error', function(event) {
-            self.errorListener?.(event); 
+            self.errorListener?.(event, false);
         });
     }
-    
+
     public onOpen(listener: (event: any) => void): void {
         this.openListener = listener;
     }
     
-    public onMessage(listener: (event: any) => void): void {
+    public onProperties(listener: (event: any) => void): void {
+        this.propertiesListener = listener;
+    }
+
+    public onMessage(listener: (query: string, filterState: FilterState, data: any) => void): void {
         this.messageListener = listener;
     }
 
-    private handleMessage(event: any): any {
-        let self = this;
-        if (self.properties[PHOTONIQ_ES]) {
-
-            tryToDecodeData(event.data).then( data => {
-                if (!data.error) {
-                    for (let query in data) {
-                        let queryData = data[query];
-                        let filterState = self.filtersState.filterForQuery(query);
-                        if (filterState) {
-
-                            self.filtersState.increment(filterState);
-
-                            let isInitialData = Array.isArray(queryData);
-                            if (isInitialData) {
-                                for (let i = 0; i < queryData.length; i++) {
-                                    queryData[i] = convertInitialData(queryData[i]);
-                                }
-                            } else {
-                                queryData = [queryData];
-                            }
-
-                            for (const querySetWithFilter of filterState.querySets) {
-                                if (isInitialData && !querySetWithFilter.initialData) continue;
-                                let edsEvent: EDSEvent & EDSEventMessage = {
-                                    type: EDSEventType.Message,
-                                    connection: self,
-                                    data: queryData,
-                                    query: query,
-                                    count: querySetWithFilter.count,
-                                    retrieve: isInitialData,
-                                }
-                                for (let callback of querySetWithFilter.callbacks) {
-                                    try {
-                                        callback(edsEvent);
-                                    } catch (e) {
-                                        let msg = `Error while handling data for query: ${query}`;
-                                        const edsEvent: EDSEvent & EDSEventError = {
-                                            type: EDSEventType.ClientQueryError,
-                                            connection: self,
-                                            data: e,
-                                            message: msg,
-                                            query: query
-                                        };
-                                        self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                                        //self.filtersState.handleGlobalListener(edsEvent);
-                                    }
-                                }
-                            }
-
-                            let filterToRemove = self.filtersState.tryToRemove(filterState, query);
-
-                            if (filterToRemove) {
-                                self.send(filterToRemove);
-                            }
-                        }
-                    }
-                } else {
-                    let msg = data.error;
-                    const queryErrorPrefix: string = "Error parsing SQL query:";
-                    if (msg.startsWith(queryErrorPrefix)) {
-                        let query = msg.substring(queryErrorPrefix.length, msg.indexOf("ERROR")).trim();
-                        const edsEvent: EDSEvent & EDSEventError = {
-                            type: EDSEventType.ServerQueryError,
-                            connection: self,
-                            data: undefined,
-                            code: data.code,
-                            message: msg,
-                            query: query
-                        };
-
-                        let filterState = self.filtersState.filterForQuery(query);
-                        if (filterState) {
-                            for (const querySetWithFilter of filterState.querySets) {
-                                self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                            }
-                        }
-                        //self.filtersState.handleGlobalListener(edsEvent);
-                    } else {
-                        const edsEvent: EDSEvent & EDSEventError = {
-                            type: EDSEventType.ServerGlobalError,
-                            connection: self,
-                            data: undefined,
-                            code: data.code,
-                            message: msg
-                        };
-                        self.filtersState.handleGlobalListener(edsEvent);
-                    }
-                }
-            });
-
-        } else {
-            // retrieve properties
-            const lines = event.data.split("\n");
-            for (const line of lines) {
-                const keyValue = line.split(":");
-                if (keyValue.length == 2) {
-                    this.properties[keyValue[0].trim()] = keyValue[1].trim();
-                }
-            }
-        }
-    }
-    
     public onClose(listener: (event: any) => void): void {
         this.closeListener = listener;
         if (this.pingIntervalId) {
@@ -181,21 +123,25 @@ export class WsConnection implements InternalConnection {
         }
     }
     
-    public onError(listener: (event: any) => void): void {
+    public onError(listener: (event: any, server: boolean) => void): void {
         this.errorListener = listener;
     }
     
     public send(filter: Filter): void {
-        if (this.status() === ConnectionStatus.Open) {
+        if (this.getStatus() === ConnectionStatus.Open) {
             this.ws?.send(JSON.stringify(filter));
         }
     }
      
-    public disconnect(): void {
-        this.ws?.close();
+    public disconnect(): boolean {
+        if (this.ws) {
+            this.ws.close();
+            return true;
+        }
+        return false;
     }
      
-    public status(): ConnectionStatus {
+    public getStatus(): ConnectionStatus {
         switch (this.ws?.readyState) {
             case WebSocket.CONNECTING:
                 return ConnectionStatus.Connecting;
@@ -228,7 +174,7 @@ export class WsConnection implements InternalConnection {
         let self = this;
         if (!self.config.pingSeconds || self.config.pingSeconds > 0) {
             this.pingIntervalId = setInterval(() => {
-                if (self.status() === ConnectionStatus.Open) {
+                if (self.getStatus() === ConnectionStatus.Open) {
                     self.ws?.send("{1}");
                 }
             }, (self.config.pingSeconds ?? this.DEFAULT_PING_SECONDS) * 1000);

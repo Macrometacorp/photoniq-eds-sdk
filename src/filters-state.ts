@@ -6,7 +6,7 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 
-import {EDSEvent, Filter, FilterState} from "./types";
+import {Config, EDSEvent, Filter, FilterState} from "./types";
 import {Query, QuerySet} from "./query-set";
 
 export const FALSE: string = "FALSE";
@@ -17,9 +17,11 @@ export const REMOVE: string = "remove";
 export class FiltersState {
 
     private readonly queries: Map<string, FilterState>;
+    private readonly config: Config;
     private readonly globalListener: (type: EDSEvent) => void;
 
-    constructor(globalListener: (event: EDSEvent) => void) {
+    constructor(config: Config, globalListener: (event: EDSEvent) => void) {
+        this.config = config;
         this.queries = new Map();
         this.globalListener = globalListener;
     }
@@ -34,7 +36,8 @@ export class FiltersState {
             queries: [query],
             initialData: initialData,
             once: once,
-            compress: compress
+            compress: compress,
+            filterType: this.config.queryType
         };
     }
 

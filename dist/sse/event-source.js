@@ -16,6 +16,9 @@ export class EventSource {
     onOpen(listener) {
         this.openListener = listener;
     }
+    onProperties(listener) {
+        this.propertiesListener = listener;
+    }
     onMessage(listener) {
         this.messageListener = listener;
     }
@@ -27,7 +30,7 @@ export class EventSource {
     }
     connect(data) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c, _d, _e;
+            var _a, _b, _c, _d, _e, _f;
             try {
                 const response = yield fetch(this.url, {
                     method: 'POST',
@@ -47,9 +50,10 @@ export class EventSource {
                 while (!(streamResult = yield this.reader.read()).done) {
                     let result = new TextDecoder('utf-8').decode(streamResult.value);
                     buffer += result;
-                    let endIndex = buffer.indexOf("\n\n");
-                    if (endIndex > -1) {
+                    let endIndex;
+                    while ((endIndex = buffer.indexOf("\n\n")) > -1) {
                         //message complete
+                        let propertyChanged = false;
                         let message = buffer.substring(0, endIndex);
                         buffer = buffer.substring(endIndex + 2);
                         if (message.startsWith(":")) {
@@ -58,6 +62,7 @@ export class EventSource {
                                 const keyValue = line.split(":");
                                 if (keyValue.length == 3) {
                                     this.properties[keyValue[1].trim()] = keyValue[2].trim();
+                                    propertyChanged = true;
                                 }
                             }
                         }
@@ -78,12 +83,15 @@ export class EventSource {
                                 }
                             }
                         }
+                        if (propertyChanged) {
+                            (_d = this.propertiesListener) === null || _d === void 0 ? void 0 : _d.call(this, this.properties);
+                        }
                     }
                 }
-                (_d = this.closeListener) === null || _d === void 0 ? void 0 : _d.call(this, "Connection closed");
+                (_e = this.closeListener) === null || _e === void 0 ? void 0 : _e.call(this, "Connection closed");
             }
             catch (error) {
-                (_e = this.errorListener) === null || _e === void 0 ? void 0 : _e.call(this, error);
+                (_f = this.errorListener) === null || _f === void 0 ? void 0 : _f.call(this, error);
             }
         });
     }

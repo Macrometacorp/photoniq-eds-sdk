@@ -16,3 +16,4 @@
  */
 export declare function convertInitialData(sqlData: any): any;
 export declare function tryToDecodeData(data: string): Promise<any>;
+export declare function decodeGzip(encoded: string): Promise<string>;

@@ -61,7 +61,7 @@ export function tryToDecodeData(data) {
         });
     });
 }
-function decodeGzip(encoded) {
+export function decodeGzip(encoded) {
     return __awaiter(this, void 0, void 0, function* () {
         const gzipData = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
         const blob = new Blob([gzipData], { type: "application/octet-stream" });

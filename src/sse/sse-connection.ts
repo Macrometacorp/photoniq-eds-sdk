@@ -2,17 +2,14 @@ import {
     Config,
     ConnectionProperties,
     ConnectionStatus,
-    EDSEvent,
-    EDSEventError,
-    EDSEventMessage,
-    EDSEventType,
     Filter,
+    FilterState,
     InternalConnection,
     PHOTONIQ_ES
 } from "../types";
 import {EventSource} from "./event-source"
-import {FALSE, FiltersState, TRUE} from "../filters-state";
-import {convertInitialData, tryToDecodeData} from "../utils";
+import {ADD, FALSE, FiltersState, TRUE} from "../filters-state";
+import {decodeGzip} from "../utils";
 
 export class SseConnection implements InternalConnection {
     private readonly config: Config;
@@ -20,12 +17,16 @@ export class SseConnection implements InternalConnection {
     private readonly url: string;
     private readonly headers: HeadersInit;
     private eventSource?: EventSource;
-    private opened: boolean = false;
+    private status: ConnectionStatus;
     
+    private readonly ENCODED_GZ_CONTENT: string = "encoded-gz-content: ";
+    private readonly FAILED_TO_PARSE_QUERY: string = "Failed to parse query: ";
+
     private openListener?: (type: any) => void;
-    private messageListener?: (type: any) => void;
+    private propertiesListener?: (type: any) => void;
+    private messageListener?: (query: string, filterState: FilterState, data: any) => void;
     private closeListener?: (type: any) => void;
-    private errorListener?: (type: any) => void;
+    private errorListener?: (type: any, server: boolean) => void;
     
     constructor(config: Config, filtersState: FiltersState) {
         this.config = config;
@@ -36,33 +37,30 @@ export class SseConnection implements InternalConnection {
             'Authorization': `${this.config.apiKey}`,
             'x-customer-id': `${this.config.customerId}`,
         };
+        this.status = ConnectionStatus.Closed;
     }
     
     send(filter: Filter): void {
-        if (filter && this.opened) {
-            this.disconnect();
-            let filters = this.filtersState.activeFilters();
-            this.retrieve(filters);
+        if (filter) {
+            if (this.eventSource) {
+                this.eventSource.disconnect();
+                this.eventSource = undefined;
+            }
+            this.connect();
         }
     }
-    
+
     /**
      * Connect to SSE server
      */
      public connect(): void {
-         // it establishes virtual connection.
-         if (this.opened) throw Error("SSE connection already opened");
-         this.opened = true;
-         this.openListener?.("SSE connection opened");
+         if (this.eventSource) throw Error("SSE connection already opened");
+
+         let filters = this.filtersState.activeFilters();
+         this.retrieve(filters);
      }
 
      private retrieve(filters: Filter[]) {
-
-         if (!this.opened) {
-             this.opened = true;
-             this.openListener?.("SSE connection opened");
-         }
-
          let queries = filters
              .filter(f => f.initialData === TRUE)
              .map(f => f.queries)
@@ -71,43 +69,52 @@ export class SseConnection implements InternalConnection {
              this.subscribe(filters);
              return;
          }
+         let comress = filters
+             .filter(f => f.initialData === TRUE)
+             .some(f => f.compress);
          let data = {
              type: "collection",
              fabric: this.config.fabric,
              filters: {
                  once: TRUE,
-                 compress: FALSE,
+                 compress: comress ? TRUE : FALSE,
                  initialData: TRUE,
                  queries: queries
              }
          };
          let self = this;
+         if (!this.eventSource) {
+             this.openListener?.("SSE connection opened");
+         }
          this.eventSource = new EventSource(this.url, this.headers);
+         this.eventSource.onOpen((event) => {
+             if (self.status === ConnectionStatus.Connecting) {
+                 self.status = ConnectionStatus.Open;
+                 self.openListener?.(event);
+             }
+         });
+         this.eventSource.onProperties((event) => {
+             self.propertiesListener?.(event);
+         });
          this.eventSource.onError((event: any) => {
-             const edsEvent: EDSEvent = {
-                 type: EDSEventType.ClientGlobalError,
-                 connection: self,
-                 data: event
-             };
-             this.filtersState.handleGlobalListener(edsEvent)
+             self.errorListener?.(event, false);
          });
          this.eventSource.onMessage((message) => {
              self.handleMessage(message).then(result => {
                  if (result) {
                      self.eventSource?.disconnect();
+                     self.eventSource = undefined;
                      self.subscribe(filters);
                  }
              });
          });
+         if (this.status === ConnectionStatus.Closed) {
+             this.status = ConnectionStatus.Connecting;
+         }
          this.eventSource.connect(data);
      }
 
      private subscribe(filters: Filter[]) {
-
-         if (!this.opened) {
-             this.opened = true;
-             this.openListener?.("SSE connection opened");
-         }
 
          let queries = filters
              .filter(f => f.once !== TRUE)
@@ -116,35 +123,47 @@ export class SseConnection implements InternalConnection {
          if (!queries.length) {
              return;
          }
+         let comress = filters
+             .filter(f => f.once !== TRUE)
+             .some(f => f.compress);
          let data = {
              type: "collection",
              fabric: this.config.fabric,
              filters: {
+                 action: ADD,
+                 filterType: "SQL",
                  once: FALSE,
-                 compress: FALSE,
+                 compress: comress ? TRUE : FALSE,
                  initialData: FALSE,
                  queries: queries
              }
          };
          let self = this;
          this.eventSource = new EventSource(this.url, this.headers);
+         this.eventSource.onOpen((event) => {
+             if (self.status === ConnectionStatus.Connecting) {
+                 self.status = ConnectionStatus.Open;
+                 self.openListener?.(event);
+             }
+         });
          this.eventSource.onError((event: any) => {
-             const edsEvent: EDSEvent = {
-                 type: EDSEventType.ClientGlobalError,
-                 connection: self,
-                 data: event
-             };
-             this.filtersState.handleGlobalListener(edsEvent)
+             self.errorListener?.(event, false);
+         });
+         this.eventSource.onProperties((event) => {
+             self.propertiesListener?.(event);
          });
          this.eventSource.onMessage((message) => {
              self.handleMessage(message);
          });
          this.eventSource.onClose((event: any) => {
-             if (this.opened) {
-                 this.opened = false;
+             if (this.status === ConnectionStatus.Closing) {
+                 this.status = ConnectionStatus.Closed;
                  self.closeListener?.(event);
              }
          });
+         if (this.status === ConnectionStatus.Closed) {
+             this.status = ConnectionStatus.Connecting;
+         }
          this.eventSource.connect(data);
      }
      
@@ -152,7 +171,11 @@ export class SseConnection implements InternalConnection {
          this.openListener = listener;
      }
      
-     public onMessage(listener: (event: any) => void): void {
+     public onProperties(listener: (event: any) => void): void {
+         this.propertiesListener = listener;
+     }
+
+     public onMessage(listener: (query: string, filterState: FilterState, data: any) => void): void {
          this.messageListener = listener;
      }
      
@@ -160,17 +183,22 @@ export class SseConnection implements InternalConnection {
          this.closeListener = listener;
      }
      
-     public onError(listener: (event: any) => void): void {
+     public onError(listener: (event: any, server: boolean) => void): void {
          this.errorListener = listener;
      }
      
-     public status(): ConnectionStatus {
-         return this.opened ? ConnectionStatus.Open: ConnectionStatus.Closed;
+     public getStatus(): ConnectionStatus {
+         return this.status;
      }
      
-     public disconnect(): void {
-         this.eventSource?.disconnect();
-         this.eventSource = undefined;
+     public disconnect(): boolean {
+         if (this.eventSource) {
+             this.status = ConnectionStatus.Closing;
+             this.eventSource?.disconnect();
+             this.eventSource = undefined;
+             return true;
+         }
+         return false;
      }
      
      public getId(): string | undefined {
@@ -186,7 +214,7 @@ export class SseConnection implements InternalConnection {
      }
 
      private handleMessage(message: string): Promise<boolean> {
-         return tryToDecodeData(message).then( data => {
+         return this.tryToDecodeData(message).then( data => {
              if (!data.error) {
 
                  for (let query in data) {
@@ -196,83 +224,41 @@ export class SseConnection implements InternalConnection {
 
                          this.filtersState.increment(filterState);
 
-                         let isInitialData = Array.isArray(queryData);
-                         if (isInitialData) {
-                             for (let i = 0; i < queryData.length; i++) {
-                                 queryData[i] = convertInitialData(queryData[i]);
-                             }
-                         } else {
-                             queryData = [queryData];
-                         }
+                         this.messageListener?.(query, filterState, queryData);
 
-                         for (const querySetWithFilter of filterState.querySets) {
-                             if (isInitialData && !querySetWithFilter.initialData) continue;
-                             let edsEvent: EDSEvent & EDSEventMessage = {
-                                 type: EDSEventType.Message,
-                                 connection: this,
-                                 data: queryData,
-                                 query: query,
-                                 count: querySetWithFilter.count,
-                                 retrieve: isInitialData,
-                             }
-                             for (let callback of querySetWithFilter.callbacks) {
-                                 try {
-                                     callback(edsEvent);
-                                 } catch (e) {
-                                     let msg = `Error while handling data for query: ${query}`;
-                                     const edsEvent: EDSEvent & EDSEventError = {
-                                         type: EDSEventType.ClientQueryError,
-                                         connection: this,
-                                         data: e,
-                                         message: msg,
-                                         query: query
-                                     };
-                                     this.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                                     //self.filtersState.handleGlobalListener(edsEvent);
-                                 }
-                             }
-                         }
-
-                         let filterToRemove = this.filtersState.tryToRemove(filterState, query);
+                         this.filtersState.tryToRemove(filterState, query);
                      }
                  }
                  return true;
              } else {
-                 let msg = data.error;
-                 const queryErrorPrefix: string = "Error parsing SQL query:";
-                 if (msg.startsWith(queryErrorPrefix)) {
-                     let query = msg.substring(queryErrorPrefix.length, msg.indexOf("ERROR")).trim();
-                     const edsEvent: EDSEvent & EDSEventError = {
-                         type: EDSEventType.ServerQueryError,
-                         connection: this,
-                         data: undefined,
-                         code: data.code,
-                         message: msg,
-                         query: query
-                     };
-
-                     let filterState = this.filtersState.filterForQuery(query);
-                     if (filterState) {
-                         for (const querySetWithFilter of filterState.querySets) {
-                             this.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                         }
-                     }
-                     //self.filtersState.handleGlobalListener(edsEvent);
-                 } else {
-                     const edsEvent: EDSEvent & EDSEventError = {
-                         type: EDSEventType.ServerGlobalError,
-                         connection: this,
-                         data: undefined,
-                         code: data.code,
-                         message: msg
-                     };
-                     this.filtersState.handleGlobalListener(edsEvent);
-                 }
+                 this.errorListener?.(data, true);
+                 return false;
              }
-             return false;
-         })
-
+         });
      }
 
+     private async tryToDecodeData (data: string): Promise<any> {
+         return new Promise((resolve, reject) => {
+
+             if (data.startsWith(this.ENCODED_GZ_CONTENT)) {
+                 try {
+                     decodeGzip(data.substring(this.ENCODED_GZ_CONTENT.length)).then( decoded => resolve(JSON.parse(decoded)));
+                 } catch (e) {
+                     reject(e);
+                 }
+             } else if (data.startsWith(this.FAILED_TO_PARSE_QUERY)) {
+                 resolve({
+                     error: data,
+                     code: 400
+                 })
+             } else {
+                 try {
+                     resolve(JSON.parse(data));
+                 } catch (e) {
+                     reject(e);
+                 }
+             }
+         });
+     }
 
 }

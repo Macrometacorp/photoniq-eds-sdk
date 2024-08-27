@@ -7,18 +7,22 @@
  */
 import { SwitchableConnection } from "./switchable-connection";
 /**
- * Create a new connection innstance.
+ * Create a new `Connection` instance.
+ *
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
+ * @return `Connection` instance.
  * @module connection
  */
 export function create(config, globalListener) {
     return new SwitchableConnection(config, globalListener);
 }
 /**
- * Create a new connection innstance and establish connection to PhotonIQ EDS server.
+ * Create a new `Connection` instance and establish connection to PhotonIQ EDS.
+ *
  * @param config configuration for the connection
  * @param globalListener listen all `EDSEvent` events.
+ * @return `Connection` instance.
  * @module connection
  */
 export function connect(config, globalListener) {

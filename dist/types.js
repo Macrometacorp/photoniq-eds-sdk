@@ -18,7 +18,7 @@ export var EDSEventType;
 (function (EDSEventType) {
     EDSEventType["Open"] = "open";
     EDSEventType["Close"] = "close";
-    EDSEventType["ConnectionId"] = "connection-id";
+    EDSEventType["Properties"] = "properties";
     EDSEventType["ServerQueryError"] = "server-query-error";
     EDSEventType["ServerGlobalError"] = "server-global-error";
     EDSEventType["ClientQueryError"] = "client-query-error";

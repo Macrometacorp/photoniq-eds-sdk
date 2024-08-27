@@ -6,7 +6,7 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 
-import {QuerySet} from "./query-set";
+import { QuerySet } from "./query-set";
 /**
  * @module Types
  *
@@ -33,6 +33,7 @@ export type Config = {
     connectionTypes?: string[];
     autoReconnect?: boolean;
     pingSeconds?: number;
+    queryType?: string;
 };
 
 /**
@@ -41,7 +42,7 @@ export type Config = {
 export enum EDSEventType {
     Open = "open",
     Close = "close",
-    ConnectionId = "connection-id",
+    Properties = "properties",
     ServerQueryError = "server-query-error",
     ServerGlobalError = "server-global-error",
     ClientQueryError = "client-query-error",
@@ -86,8 +87,8 @@ export type EDSEventMessage = {
 export interface Connection {
     connect(): void;
     send(filter: Filter): void;
-    disconnect(): void;
-    status(): ConnectionStatus;
+    disconnect(): boolean;
+    getStatus(): ConnectionStatus;
     getId(): string | undefined;
     getProperty(name: string): string | undefined;
     getProperties(): ConnectionProperties;
@@ -95,9 +96,10 @@ export interface Connection {
 
 export interface InternalConnection extends Connection  {
     onOpen(listener: (event: any) => void): void;
-    onMessage(listener: (event: any) => void): void;
+    onMessage(listener: (query: string, filterState: FilterState, data: any) => void): void;
+    onProperties(listener: (event: any) => void): void;
     onClose(listener: (event: any) => void): void;
-    onError(listener: (event: any) => void): void;
+    onError(listener: (event: any, server: boolean) => void): void;
 }
 
 export enum ConnectionStatus {
@@ -112,6 +114,7 @@ export type Filter = {
     initialData?: string;
     compress?: string;
     once?: string;
+    filterType?: string;
     queries: string[];
 };
 

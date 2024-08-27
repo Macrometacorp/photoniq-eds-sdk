@@ -1,5 +1,5 @@
-import { ConnectionStatus, EDSEventType, PHOTONIQ_ES } from "../types";
-import { convertInitialData, tryToDecodeData } from "../utils";
+import { ConnectionStatus, PHOTONIQ_ES, } from "../types";
+import { tryToDecodeData } from "../utils";
 export class WsConnection {
     constructor(config, filtersState) {
         this.STUB_FILTER = "%7B%22action%22%3A%22remove%22%2C%22queries%22%3A%5B%22SELECT%20%2A%20FROM%20fake%22%5D%7D";
@@ -22,13 +22,47 @@ export class WsConnection {
         this.ws.addEventListener('open', function (event) {
             var _a;
             (_a = self.openListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
+            // send current subscribed filters.
+            let filters = self.filtersState.activeFilters();
+            for (const filter of filters) {
+                self.send(filter);
+            }
             self.updatePingInterval();
         });
         this.ws.addEventListener('message', function (event) {
             var _a;
-            let message = self.handleMessage(event);
-            if (message) {
-                (_a = self.messageListener) === null || _a === void 0 ? void 0 : _a.call(self, message);
+            if (self.properties[PHOTONIQ_ES]) {
+                tryToDecodeData(event.data).then(data => {
+                    var _a, _b;
+                    if (!data.error) {
+                        for (let query in data) {
+                            let queryData = data[query];
+                            let filterState = self.filtersState.filterForQuery(query);
+                            if (filterState) {
+                                self.filtersState.increment(filterState);
+                                (_a = self.messageListener) === null || _a === void 0 ? void 0 : _a.call(self, query, filterState, queryData);
+                                let filterToRemove = self.filtersState.tryToRemove(filterState, query);
+                                if (filterToRemove) {
+                                    self.send(filterToRemove);
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        (_b = self.errorListener) === null || _b === void 0 ? void 0 : _b.call(self, data, true);
+                    }
+                });
+            }
+            else {
+                // retrieve properties
+                const lines = event.data.split("\n");
+                for (const line of lines) {
+                    const keyValue = line.split(":");
+                    if (keyValue.length == 2) {
+                        self.properties[keyValue[0].trim()] = keyValue[1].trim();
+                    }
+                }
+                (_a = self.propertiesListener) === null || _a === void 0 ? void 0 : _a.call(self, self.properties);
             }
             self.updatePingInterval();
         });
@@ -38,114 +72,17 @@ export class WsConnection {
         });
         this.ws.addEventListener('error', function (event) {
             var _a;
-            (_a = self.errorListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
+            (_a = self.errorListener) === null || _a === void 0 ? void 0 : _a.call(self, event, false);
         });
     }
     onOpen(listener) {
         this.openListener = listener;
     }
+    onProperties(listener) {
+        this.propertiesListener = listener;
+    }
     onMessage(listener) {
         this.messageListener = listener;
-    }
-    handleMessage(event) {
-        let self = this;
-        if (self.properties[PHOTONIQ_ES]) {
-            tryToDecodeData(event.data).then(data => {
-                if (!data.error) {
-                    for (let query in data) {
-                        let queryData = data[query];
-                        let filterState = self.filtersState.filterForQuery(query);
-                        if (filterState) {
-                            self.filtersState.increment(filterState);
-                            let isInitialData = Array.isArray(queryData);
-                            if (isInitialData) {
-                                for (let i = 0; i < queryData.length; i++) {
-                                    queryData[i] = convertInitialData(queryData[i]);
-                                }
-                            }
-                            else {
-                                queryData = [queryData];
-                            }
-                            for (const querySetWithFilter of filterState.querySets) {
-                                if (isInitialData && !querySetWithFilter.initialData)
-                                    continue;
-                                let edsEvent = {
-                                    type: EDSEventType.Message,
-                                    connection: self,
-                                    data: queryData,
-                                    query: query,
-                                    count: querySetWithFilter.count,
-                                    retrieve: isInitialData,
-                                };
-                                for (let callback of querySetWithFilter.callbacks) {
-                                    try {
-                                        callback(edsEvent);
-                                    }
-                                    catch (e) {
-                                        let msg = `Error while handling data for query: ${query}`;
-                                        const edsEvent = {
-                                            type: EDSEventType.ClientQueryError,
-                                            connection: self,
-                                            data: e,
-                                            message: msg,
-                                            query: query
-                                        };
-                                        self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                                        //self.filtersState.handleGlobalListener(edsEvent);
-                                    }
-                                }
-                            }
-                            let filterToRemove = self.filtersState.tryToRemove(filterState, query);
-                            if (filterToRemove) {
-                                self.send(filterToRemove);
-                            }
-                        }
-                    }
-                }
-                else {
-                    let msg = data.error;
-                    const queryErrorPrefix = "Error parsing SQL query:";
-                    if (msg.startsWith(queryErrorPrefix)) {
-                        let query = msg.substring(queryErrorPrefix.length, msg.indexOf("ERROR")).trim();
-                        const edsEvent = {
-                            type: EDSEventType.ServerQueryError,
-                            connection: self,
-                            data: undefined,
-                            code: data.code,
-                            message: msg,
-                            query: query
-                        };
-                        let filterState = self.filtersState.filterForQuery(query);
-                        if (filterState) {
-                            for (const querySetWithFilter of filterState.querySets) {
-                                self.filtersState.handleErrorListeners(querySetWithFilter.errorCallbacks, query, edsEvent);
-                            }
-                        }
-                        //self.filtersState.handleGlobalListener(edsEvent);
-                    }
-                    else {
-                        const edsEvent = {
-                            type: EDSEventType.ServerGlobalError,
-                            connection: self,
-                            data: undefined,
-                            code: data.code,
-                            message: msg
-                        };
-                        self.filtersState.handleGlobalListener(edsEvent);
-                    }
-                }
-            });
-        }
-        else {
-            // retrieve properties
-            const lines = event.data.split("\n");
-            for (const line of lines) {
-                const keyValue = line.split(":");
-                if (keyValue.length == 2) {
-                    this.properties[keyValue[0].trim()] = keyValue[1].trim();
-                }
-            }
-        }
     }
     onClose(listener) {
         this.closeListener = listener;
@@ -158,15 +95,18 @@ export class WsConnection {
     }
     send(filter) {
         var _a;
-        if (this.status() === ConnectionStatus.Open) {
+        if (this.getStatus() === ConnectionStatus.Open) {
             (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(JSON.stringify(filter));
         }
     }
     disconnect() {
-        var _a;
-        (_a = this.ws) === null || _a === void 0 ? void 0 : _a.close();
+        if (this.ws) {
+            this.ws.close();
+            return true;
+        }
+        return false;
     }
-    status() {
+    getStatus() {
         var _a;
         switch ((_a = this.ws) === null || _a === void 0 ? void 0 : _a.readyState) {
             case WebSocket.CONNECTING:
@@ -198,7 +138,7 @@ export class WsConnection {
         if (!self.config.pingSeconds || self.config.pingSeconds > 0) {
             this.pingIntervalId = setInterval(() => {
                 var _a;
-                if (self.status() === ConnectionStatus.Open) {
+                if (self.getStatus() === ConnectionStatus.Open) {
                     (_a = self.ws) === null || _a === void 0 ? void 0 : _a.send("{1}");
                 }
             }, ((_a = self.config.pingSeconds) !== null && _a !== void 0 ? _a : this.DEFAULT_PING_SECONDS) * 1000);

@@ -7,6 +7,7 @@ export class EventSource {
     private properties: ConnectionProperties = {};
     private reader?: ReadableStreamDefaultReader<Uint8Array>;
     private openListener?: (event: any) => void;
+    private propertiesListener?: (event: any) => void;
     private messageListener?: (event: any) => void;
     private errorListener?: (event: any) => void;
     private closeListener?: (event: any) => void;
@@ -18,6 +19,10 @@ export class EventSource {
     
     public onOpen(listener: (event: any) => void) {
         this.openListener = listener;
+    }
+
+    public onProperties(listener: (event: any) => void) {
+        this.propertiesListener = listener;
     }
     
     public onMessage(listener: (event: any) => void) {
@@ -54,9 +59,10 @@ export class EventSource {
             while (!(streamResult = await this.reader.read()).done) {
                 let result = new TextDecoder('utf-8').decode(streamResult.value);
                 buffer += result;
-                let endIndex = buffer.indexOf("\n\n");
-                if (endIndex > -1) {
+                let endIndex;
+                while ((endIndex = buffer.indexOf("\n\n")) > -1 ) {
                     //message complete
+                    let propertyChanged = false;
                     let message = buffer.substring(0, endIndex);
                     buffer = buffer.substring(endIndex + 2);
 
@@ -66,6 +72,7 @@ export class EventSource {
                             const keyValue = line.split(":");
                             if (keyValue.length == 3) {
                                 this.properties[keyValue[1].trim()] = keyValue[2].trim();
+                                propertyChanged = true;
                             }
                         }
                     } else {
@@ -83,6 +90,10 @@ export class EventSource {
                                     console.warn(`Not supported message with type of message ${key}: ${value}`);
                             }
                         }
+                    }
+
+                    if (propertyChanged) {
+                        this.propertiesListener?.(this.properties);
                     }
                 }
             }

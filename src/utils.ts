@@ -53,7 +53,7 @@ export async function tryToDecodeData (data: string): Promise<any> {
     });
 }
 
-async function decodeGzip (encoded:string) {
+export async function decodeGzip (encoded:string) {
     const gzipData = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
     const blob = new Blob([gzipData], { type: "application/octet-stream" });
     const cs = new DecompressionStream("gzip");

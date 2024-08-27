@@ -5,7 +5,7 @@
  * Proprietary and confidential
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
-import { EDSEvent, Filter, FilterState } from "./types";
+import { Config, EDSEvent, Filter, FilterState } from "./types";
 import { Query, QuerySet } from "./query-set";
 export declare const FALSE: string;
 export declare const TRUE: string;
@@ -13,8 +13,9 @@ export declare const ADD: string;
 export declare const REMOVE: string;
 export declare class FiltersState {
     private readonly queries;
+    private readonly config;
     private readonly globalListener;
-    constructor(globalListener: (event: EDSEvent) => void);
+    constructor(config: Config, globalListener: (event: EDSEvent) => void);
     private calculateFilter;
     increment(filterState: FilterState): void;
     tryToRemove(filterState: FilterState, query: string): Filter | undefined;

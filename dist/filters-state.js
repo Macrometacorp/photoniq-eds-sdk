@@ -10,7 +10,8 @@ export const TRUE = "TRUE";
 export const ADD = "add";
 export const REMOVE = "remove";
 export class FiltersState {
-    constructor(globalListener) {
+    constructor(config, globalListener) {
+        this.config = config;
         this.queries = new Map();
         this.globalListener = globalListener;
     }
@@ -23,7 +24,8 @@ export class FiltersState {
             queries: [query],
             initialData: initialData,
             once: once,
-            compress: compress
+            compress: compress,
+            filterType: this.config.queryType
         };
     }
     increment(filterState) {

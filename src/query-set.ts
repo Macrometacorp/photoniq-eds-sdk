@@ -6,10 +6,10 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 
-import {Config, EDSEvent, Filter} from "./types";
+import { EDSEvent } from "./types";
 import { QueryBatch } from "./query-batch";
-import { FiltersState, TRUE } from "./filters-state";
-import {SwitchableConnection} from "./switchable-connection";
+import { FiltersState } from "./filters-state";
+import { SwitchableConnection } from "./switchable-connection";
 
 /**
  * @module QuerySet

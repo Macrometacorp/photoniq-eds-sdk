@@ -1,4 +1,4 @@
-import { Config, ConnectionProperties, ConnectionStatus, Filter, InternalConnection } from "../types";
+import { Config, ConnectionProperties, ConnectionStatus, Filter, FilterState, InternalConnection } from "../types";
 import { FiltersState } from "../filters-state";
 export declare class WsConnection implements InternalConnection {
     private readonly STUB_FILTER;
@@ -9,6 +9,7 @@ export declare class WsConnection implements InternalConnection {
     private config;
     private filtersState;
     private openListener?;
+    private propertiesListener?;
     private messageListener?;
     private closeListener?;
     private errorListener?;
@@ -18,13 +19,13 @@ export declare class WsConnection implements InternalConnection {
     constructor(config: Config, filtersState: FiltersState);
     connect(): void;
     onOpen(listener: (event: any) => void): void;
-    onMessage(listener: (event: any) => void): void;
-    private handleMessage;
+    onProperties(listener: (event: any) => void): void;
+    onMessage(listener: (query: string, filterState: FilterState, data: any) => void): void;
     onClose(listener: (event: any) => void): void;
-    onError(listener: (event: any) => void): void;
+    onError(listener: (event: any, server: boolean) => void): void;
     send(filter: Filter): void;
-    disconnect(): void;
-    status(): ConnectionStatus;
+    disconnect(): boolean;
+    getStatus(): ConnectionStatus;
     getId(): string | undefined;
     getProperty(name: string): string | undefined;
     getProperties(): ConnectionProperties;

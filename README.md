@@ -26,8 +26,8 @@ let connection = PhotoniqEdsSdk.connect({
     }, function(event) {
         if (event.type === "open") {
             console.log('EDS connection established: ', event);
-        } else if (event.type === "connection-id") {
-            console.log("EDS assigned connection's ID: " + event.data);
+        } else if (event.type === "properties") {
+            console.log("EDS assigned properties: ", event.data);
         } else if (event.type === "server-global-error") {
             console.log(`EDS replied with an Error: `, event);
         }else if (event.type === "server-query-error") {
@@ -97,7 +97,7 @@ export default {
         }, function(event) {
           if (event.type === "open") {
               console.log('EDS connection established: ', event);
-          } else if (event.type === "connection-id") {
+          } else if (event.type === "properties") {
               console.log("EDS assigned connection's ID: " + event.data);
           } else if (event.type === "server-global-error") {
               console.log(`EDS replied with an Error: `, event);
