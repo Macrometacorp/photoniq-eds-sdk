@@ -15,7 +15,7 @@ export declare class SseConnection implements InternalConnection {
     private closeListener?;
     private errorListener?;
     constructor(config: Config, filtersState: FiltersState);
-    send(filter: Filter): void;
+    send(filters: Filter[]): void;
     /**
      * Connect to SSE server
      */

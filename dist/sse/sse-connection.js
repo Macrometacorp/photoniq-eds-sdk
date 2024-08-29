@@ -25,8 +25,8 @@ export class SseConnection {
         };
         this.status = ConnectionStatus.Closed;
     }
-    send(filter) {
-        if (filter) {
+    send(filters) {
+        if (filters === null || filters === void 0 ? void 0 : filters.length) {
             if (this.eventSource) {
                 this.eventSource.disconnect();
                 this.eventSource = undefined;
@@ -134,8 +134,9 @@ export class SseConnection {
             }
         });
         this.eventSource.onError((event) => {
-            var _a;
+            var _a, _b;
             (_a = self.errorListener) === null || _a === void 0 ? void 0 : _a.call(self, event, false);
+            (_b = self.closeListener) === null || _b === void 0 ? void 0 : _b.call(self, event);
         });
         this.eventSource.onProperties((event) => {
             var _a;

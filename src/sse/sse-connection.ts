@@ -40,8 +40,8 @@ export class SseConnection implements InternalConnection {
         this.status = ConnectionStatus.Closed;
     }
     
-    send(filter: Filter): void {
-        if (filter) {
+    send(filters: Filter[]): void {
+        if (filters?.length) {
             if (this.eventSource) {
                 this.eventSource.disconnect();
                 this.eventSource = undefined;
@@ -148,6 +148,7 @@ export class SseConnection implements InternalConnection {
          });
          this.eventSource.onError((event: any) => {
              self.errorListener?.(event, false);
+             self.closeListener?.(event);
          });
          this.eventSource.onProperties((event) => {
              self.propertiesListener?.(event);

@@ -76,7 +76,7 @@ export type EDSEventMessage = {
 };
 export interface Connection {
     connect(): void;
-    send(filter: Filter): void;
+    send(filters: Filter[]): void;
     disconnect(): boolean;
     getStatus(): ConnectionStatus;
     getId(): string | undefined;

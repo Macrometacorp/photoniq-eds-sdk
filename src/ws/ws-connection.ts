@@ -49,9 +49,7 @@ export class WsConnection implements InternalConnection {
 
             // send current subscribed filters.
             let filters = self.filtersState.activeFilters();
-            for (const filter of filters) {
-                self.send(filter);
-            }
+            self.send(filters);
 
             self.updatePingInterval();
         });
@@ -72,7 +70,7 @@ export class WsConnection implements InternalConnection {
                                 let filterToRemove = self.filtersState.tryToRemove(filterState, query);
 
                                 if (filterToRemove) {
-                                    self.send(filterToRemove);
+                                    self.send([filterToRemove]);
                                 }
                             }
                         }
@@ -127,9 +125,12 @@ export class WsConnection implements InternalConnection {
         this.errorListener = listener;
     }
     
-    public send(filter: Filter): void {
+    public send(filters: Filter[]): void {
         if (this.getStatus() === ConnectionStatus.Open) {
-            this.ws?.send(JSON.stringify(filter));
+            for (const filter of filters) {
+                this.ws?.send(JSON.stringify(filter));
+            }
+
         }
     }
      

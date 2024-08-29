@@ -30,7 +30,7 @@ export declare class SwitchableConnection implements Connection {
     /**
      * Send data directly to web socket
      */
-    send(filter: Filter): void;
+    send(filters: Filter[]): void;
     /**
      * Disconnect from web socket
      */

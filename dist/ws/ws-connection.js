@@ -24,9 +24,7 @@ export class WsConnection {
             (_a = self.openListener) === null || _a === void 0 ? void 0 : _a.call(self, event);
             // send current subscribed filters.
             let filters = self.filtersState.activeFilters();
-            for (const filter of filters) {
-                self.send(filter);
-            }
+            self.send(filters);
             self.updatePingInterval();
         });
         this.ws.addEventListener('message', function (event) {
@@ -43,7 +41,7 @@ export class WsConnection {
                                 (_a = self.messageListener) === null || _a === void 0 ? void 0 : _a.call(self, query, filterState, queryData);
                                 let filterToRemove = self.filtersState.tryToRemove(filterState, query);
                                 if (filterToRemove) {
-                                    self.send(filterToRemove);
+                                    self.send([filterToRemove]);
                                 }
                             }
                         }
@@ -93,10 +91,12 @@ export class WsConnection {
     onError(listener) {
         this.errorListener = listener;
     }
-    send(filter) {
+    send(filters) {
         var _a;
         if (this.getStatus() === ConnectionStatus.Open) {
-            (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(JSON.stringify(filter));
+            for (const filter of filters) {
+                (_a = this.ws) === null || _a === void 0 ? void 0 : _a.send(JSON.stringify(filter));
+            }
         }
     }
     disconnect() {

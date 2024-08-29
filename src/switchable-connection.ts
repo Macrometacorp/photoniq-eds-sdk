@@ -57,6 +57,8 @@ export class SwitchableConnection implements Connection {
             this.connectionTypes = this.config.connectionTypes;
         }
         
+        if (this.reconnection === -1) this.reconnection = 0;
+
         let connectionType = this.connectionTypes[this.reconnection % this.connectionTypes.length];
         switch(connectionType) {
             case "ws":
@@ -200,8 +202,8 @@ export class SwitchableConnection implements Connection {
     /**
      * Send data directly to web socket
      */
-    send(filter: Filter): void {
-        this.connection?.send(filter);
+    send(filters: Filter[]): void {
+        this.connection?.send(filters);
     }
     
     /**

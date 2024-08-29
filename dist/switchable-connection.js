@@ -37,6 +37,8 @@ export class SwitchableConnection {
         if ((_a = this.config.connectionTypes) === null || _a === void 0 ? void 0 : _a.length) {
             this.connectionTypes = this.config.connectionTypes;
         }
+        if (this.reconnection === -1)
+            this.reconnection = 0;
         let connectionType = this.connectionTypes[this.reconnection % this.connectionTypes.length];
         switch (connectionType) {
             case "ws":
@@ -176,9 +178,9 @@ export class SwitchableConnection {
     /**
      * Send data directly to web socket
      */
-    send(filter) {
+    send(filters) {
         var _a;
-        (_a = this.connection) === null || _a === void 0 ? void 0 : _a.send(filter);
+        (_a = this.connection) === null || _a === void 0 ? void 0 : _a.send(filters);
     }
     /**
      * Disconnect from web socket

@@ -30,7 +30,7 @@ export class QuerySet {
             }];
         let filtersToAdd = this.filtersState.addQueries(queries, false, false, false, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(filterToAdd);
+            this.connection.send([filterToAdd]);
         }
     }
     /**
@@ -49,7 +49,7 @@ export class QuerySet {
             }];
         let filtersToAdd = this.filtersState.addQueries(queries, true, false, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(filterToAdd);
+            this.connection.send([filterToAdd]);
         }
     }
     /**
@@ -68,7 +68,7 @@ export class QuerySet {
             }];
         let filtersToAdd = this.filtersState.addQueries(queries, true, true, compress === true, this);
         for (const filterToAdd of filtersToAdd) {
-            this.connection.send(filterToAdd);
+            this.connection.send([filterToAdd]);
         }
     }
     /**
@@ -78,7 +78,7 @@ export class QuerySet {
     unsubscribe(query) {
         let filterToRemove = this.filtersState.removeQueries([query], this);
         if (filterToRemove) {
-            this.connection.send(filterToRemove);
+            this.connection.send([filterToRemove]);
         }
     }
     /**
@@ -87,7 +87,7 @@ export class QuerySet {
     unsubscribeAll() {
         let filter = this.filtersState.removeAllQueries(this);
         if (filter) {
-            this.connection.send(filter);
+            this.connection.send([filter]);
         }
     }
     /**

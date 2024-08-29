@@ -86,13 +86,11 @@ export class QueryBatch {
         this.joinFilters(filters, retrieveAndSubscribeFilters);
         let subscribeFilters = this.filtersState.addQueries(this.subscribeQueries, false, false, false, this.querySet);
         this.joinFilters(filters, subscribeFilters);
-        for (const filterToAdd of filters) {
-            this.connection.send(filterToAdd);
-        }
         let unsubscribeFilter = this.filtersState.removeQueries(this.unsubscribeQueries, this.querySet);
         if (unsubscribeFilter) {
-            this.connection.send(unsubscribeFilter);
+            filters.push(unsubscribeFilter);
         }
+        this.connection.send(filters);
     }
     joinFilters(target, source) {
         for (const sourceFilter of source) {

@@ -23,7 +23,7 @@ export declare class WsConnection implements InternalConnection {
     onMessage(listener: (query: string, filterState: FilterState, data: any) => void): void;
     onClose(listener: (event: any) => void): void;
     onError(listener: (event: any, server: boolean) => void): void;
-    send(filter: Filter): void;
+    send(filters: Filter[]): void;
     disconnect(): boolean;
     getStatus(): ConnectionStatus;
     getId(): string | undefined;
