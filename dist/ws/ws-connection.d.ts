@@ -3,7 +3,7 @@ import { FiltersState } from "../filters-state";
 export declare class WsConnection implements InternalConnection {
     private readonly STUB_FILTER;
     /**
-     * Default timeoput of ping-pong requests in seconds
+     * Default timeout of ping-pong requests in seconds
      */
     private readonly DEFAULT_PING_SECONDS;
     private config;

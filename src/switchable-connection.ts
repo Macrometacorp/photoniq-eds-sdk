@@ -31,14 +31,14 @@ export class SwitchableConnection implements Connection {
     private readonly filtersState: FiltersState;
     private connection?: InternalConnection;
     /**
-     * list of type connections to use in the conection. Order of values means priority of connection.
+     * List of type connections to use in the conection. Order of values means priority of connection.
      * For example, connectionTypes = ["ws", "sse"] means it will initially connect via WebSocket (ws).
      * If unsuccessful, it will try Server-Sent Events (sse), and then loop back to retry WebSocket if needed.
      */
     private connectionTypes = ["ws"];
     /**
-     * value `-1` means it has not been connected yet or disconnected manually.
-     * other values >= 0 mean the count of reconnections made before the established connection.
+     * Value `-1` means it has not been connected yet or disconnected manually.
+     * Other values >= 0 mean the count of reconnections made before the established connection.
      */
     private reconnection = -1;
     
@@ -226,7 +226,7 @@ export class SwitchableConnection implements Connection {
     }
 
     /**
-     * Check weather it connected
+     * Check the connection status
      */
     getStatus(): ConnectionStatus {
         if (this.reconnection === -1) {

@@ -4,7 +4,7 @@ export class WsConnection {
     constructor(config, filtersState) {
         this.STUB_FILTER = "%7B%22action%22%3A%22remove%22%2C%22queries%22%3A%5B%22SELECT%20%2A%20FROM%20fake%22%5D%7D";
         /**
-         * Default timeoput of ping-pong requests in seconds
+         * Default timeout of ping-pong requests in seconds
          */
         this.DEFAULT_PING_SECONDS = 29;
         this.properties = {};

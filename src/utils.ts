@@ -24,10 +24,10 @@ export function convertInitialData(sqlData: any) {
         }
         let value = sqlData;
         for (let i = 0; i < path.length; i++) {
-        if (value[path[i]] === undefined) {
-            value[path[i]] = {};
-        }
-         // if not last
+            if (value[path[i]] === undefined) {
+                value[path[i]] = {};
+            }
+            // if not last
             if (i < path.length - 1) {
                 value = value[path[i]];
             }
