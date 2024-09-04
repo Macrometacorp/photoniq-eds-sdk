@@ -1,10 +1,10 @@
 {
   "name": "photoniq-eds-sdk",
   "version": "0.1.0",
-  "description": "Web Socket Driver for the PhotonIQ EDS",
+  "description": "SDK for the PhotonIQ EDS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "private": true,
+  "private": false,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack --config webpack.dev.config.js",
@@ -15,15 +15,12 @@
     "url": "git+https://github.com/Macrometacorp/photoniq-eds-sdk.git"
   },
   "keywords": [
-    "eds",
-    "websocket",
-    "realtime",
-    "event",
-    "delivery",
-    "service",
     "macrometa",
-    "authentication",
-    "sql"
+    "photoniq",
+    "eds",
+    "sdk",
+    "websocket",
+    "sse"
   ],
   "author": "Macrometa, Dmytro Lazarenko <dmytro.lazarenko@macrometa.com>",
   "license": "Apache-2.0",

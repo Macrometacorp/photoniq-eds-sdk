@@ -1,6 +1,6 @@
-# Web Socket Driver for PhotonIQ EDS
+# SDK for PhotonIQ EDS
 
-JavaScript/TypeScript Driver for the PhotonIQ Event Delivery Service (EDS). Runs under Web Socket connection.
+JavaScript/TypeScript Driver for the PhotonIQ Event Delivery Service (EDS). Runs under Web Socket/SSE connection.
 
 
 ## Create a bundle
@@ -19,61 +19,45 @@ npm run release
 
 ```JavaScript
 let connection = PhotoniqEdsSdk.connect({
-    host: "nbapoc.photoniq.macrometa.io",
-    customerId: "<your_customer_id>",
-    apiKey: "<your_api_key>",
-    fabric: "dev_courtside",
-    }, function(event) {
-        if (event.type === "open") {
-            console.log('EDS connection established: ', event);
-        } else if (event.type === "properties") {
-            console.log("EDS assigned properties: ", event.data);
-        } else if (event.type === "server-global-error") {
-            console.log(`EDS replied with an Error: `, event);
-        }else if (event.type === "server-query-error") {
-            console.log(`EDS replied with an Error for query '${event.query}': `, event);
-        } else if (event.type === "client-global-error") {
-            console.log(`Client global error: `, event);
-        } else if (event.type === "client-query-error") {
-            console.log(`Client error for query '${event.query}': `, event);
-        } else if (event.type === "close") {
-            console.log('EDS connection closed: ', event);
-        }
-    });
+  host: "<YOUR-PHOTONIQ>.photoniq.macrometa.io",
+  customerId: "<YOUR-CUSTOMER-ID>",
+  apiKey: "<YOUR-API-KEY>",
+  fabric: "<YOUR-FABRIC>"
+});
     
-    let qs = connection.querySet();
-     
-    // default usage
-    qs.retrieve("SELECT linescore FROM game_live WHERE _key='0012307019'", (event) => {
-        console.log(`Linescore event: `, event);
-    })
-    
-    // use as batch
-    qs.batch()
-    .retrieveAndSubscribe("SELECT clock FROM game_live WHERE _key='0012307019'", (event) => {
-        console.log(`Clock event: `, event);
-    })
-    .retrieveAndSubscribe("SELECT htm FROM game_live WHERE _key='0012307019'", (event) => {
-        console.log(`Htm event: `, event);
-    })       
-    .assemble(); 
+let qs = connection.querySet();
 
+// Retrieve data by query without listening for changes.
+qs.retrieve("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", (event) => {
+  console.log(`Event: `, event);
+});
+
+// Retrieve data by query and listen for changes.
+qs.retrieveAndSubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", (event) => {
+  console.log(`Event: `, event);
+});
+
+// Listen data for changes.
+qs.subscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", (event) => {
+  console.log(`Event: `, event);
+});
+
+// Unsubscribe from query
+qs.unsubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>");
+
+// Unsubscribe from all queries
+qs.unsubscribeAll();
 ```
 
 ## Use as a module
 
-1. Run the next command to create js files and declarations
+1. Install the module:
 
 ```
-npx tsc
-```
-2. Link the module in another project by the next command:
-
-```
-npm link ../photoniq-eds-sdk
+npm i photoniq-eds-sdk
 ```
 
-3. Add dependency in the project:
+2.  Add dependency in the project:
 
 - Vue Example:
 ```
@@ -83,43 +67,44 @@ import { connect } from 'photoniq-eds-sdk';
 export default {
   name: 'App',
   mounted() {
-    this.initializeWebSocket();
+    this.initialize();
   },
   methods: {
-    initializeWebSocket() {
+    initialize() {
       try {
 
-        let connection = connect({
-          host: "<HOST",
-          customerId: "<CUSTOMER-ID>",
-          apiKey: "<API-KEY>",
-          fabric: "<FABRIC>",
-        }, function(event) {
+        let optionalGlobalListener = function(event) {
           if (event.type === "open") {
-              console.log('EDS connection established: ', event);
+            console.log('EDS connection established: ', event);
           } else if (event.type === "properties") {
-              console.log("EDS assigned connection's ID: " + event.data);
+            console.log("EDS assigned connection's ID: " + event.data);
           } else if (event.type === "server-global-error") {
-              console.log(`EDS replied with an Error: `, event);
+            console.log(`EDS replied with an Error: `, event);
           }else if (event.type === "server-query-error") {
-              console.log(`EDS replied with an Error for query '${event}': `, event);
+            console.log(`EDS replied with an Error for query '${event}': `, event);
           } else if (event.type === "client-global-error") {
-              console.log(`Client global error: `, event);
+            console.log(`Client global error: `, event);
           } else if (event.type === "client-query-error") {
-              console.log(`Client error for query '${event}': `, event);
+            console.log(`Client error for query '${event}': `, event);
           } else if (event.type === "close") {
-              console.log('EDS connection closed: ', event);
+            console.log('EDS connection closed: ', event);
           }
-        });
+        };
+
+        let connection = connect({
+          host: "<YOUR-PHOTONIQ>.photoniq.macrometa.io",
+          customerId: "<YOUR-CUSTOMER-ID>",
+          apiKey: "<YOUR-API-KEY>",
+          fabric: "<YOUR-FABRIC>"
+        }, optionalGlobalListener);
         let qs = connection.querySet();
 
-        // default usage
-        qs.retrieve("SELECT linescore FROM game_live WHERE _key='0012307019'", (event) => {
-            console.log(`Linescore event: `, event);
-        })
+        qs.retrieveAndSubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", (event) => {
+          console.log(`Event: `, event);
+        });
 
       } catch (error) {
-        console.error('Error initializing WebSocket:', error);
+        console.error('Error:', error);
       }
     }
   }

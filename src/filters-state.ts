@@ -27,7 +27,7 @@ export class FiltersState {
     }
 
     private calculateFilter(action: string, query: string, filterState: FilterState): Filter {
-        const initialData = filterState.querySets.some(qs => qs.initialData && qs.count === 0) ? TRUE : undefined;
+        const initialData = filterState.querySets.some(qs => qs.initialData) ? TRUE : undefined;
         const once = filterState.querySets.every(qs => qs.once) ? TRUE : undefined;
         const compress = filterState.querySets.some(qs => qs.compress) ? TRUE : undefined;
 
@@ -78,9 +78,6 @@ export class FiltersState {
                     querySetWithFilter.initialData = initialData;
                     querySetWithFilter.once = once;
                     querySetWithFilter.compress = compress;
-                    if (initialData) {
-                        querySetWithFilter.count = 0;
-                    }
                     if (querySetWithFilter.callbacks.indexOf(query.listener) == -1) {
                         querySetWithFilter.callbacks.push(query.listener);
                     }
@@ -88,14 +85,8 @@ export class FiltersState {
                         querySetWithFilter.errorCallbacks.push(query.errorListener);
                     }
                 } else {
-                    let callbacks = [];
-                    if (query.listener) {
-                        callbacks.push(query.listener);
-                    }
-                    let errorCallbacks = [];
-                    if (query.errorListener) {
-                        errorCallbacks.push(query.errorListener);
-                    }
+                    let callbacks = query.listener ? [query.listener] : [];
+                    let errorCallbacks = query.errorListener ? [query.errorListener] : [];
                     filterState.querySets.push({
                         querySet: querySet,
                         initialData: initialData,

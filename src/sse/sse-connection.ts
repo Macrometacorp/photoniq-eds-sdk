@@ -102,9 +102,23 @@ export class SseConnection implements InternalConnection {
          this.eventSource.onMessage((message) => {
              self.handleMessage(message).then(result => {
                  if (result) {
-                     self.eventSource?.disconnect();
-                     self.eventSource = undefined;
-                     self.subscribe(filters);
+                     try {
+                         let data = JSON.parse(message);
+                         for (let query in data) {
+                             let index = queries.indexOf(query);
+                             if (index > -1) {
+                                 queries.splice(index, 1);
+                             }
+                         }
+                         if (!queries.length) {
+                             self.eventSource?.disconnect();
+                             self.eventSource = undefined;
+                             self.subscribe(filters);
+                         }
+                     } catch (e) {
+                         self.errorListener?.(e, false);
+                     }
+
                  }
              });
          });
