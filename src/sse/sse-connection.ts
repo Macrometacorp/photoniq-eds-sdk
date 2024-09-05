@@ -42,11 +42,18 @@ export class SseConnection implements InternalConnection {
     
     send(filters: Filter[]): void {
         if (filters?.length) {
+            let activeFilters = this.filtersState.activeFilters();
             if (this.eventSource) {
                 this.eventSource.disconnect();
                 this.eventSource = undefined;
+                this.retrieve(filters, () => {
+                    this.subscribe(activeFilters);
+                });
+            } else {
+                this.retrieve(activeFilters, () => {
+                    this.subscribe(activeFilters);
+                });
             }
-            this.connect();
         }
     }
 
@@ -56,20 +63,23 @@ export class SseConnection implements InternalConnection {
      public connect(): void {
          if (this.eventSource) throw Error("SSE connection already opened");
 
-         let filters = this.filtersState.activeFilters();
-         this.retrieve(filters);
+         let activeFilters = this.filtersState.activeFilters();
+         this.retrieve(activeFilters, () => {
+             this.subscribe(activeFilters);
+         });
      }
 
-     private retrieve(filters: Filter[]) {
+     private retrieve(filters: Filter[], callback: () => void) {
          let queries = filters
              .filter(f => f.initialData === TRUE)
              .map(f => f.queries)
              .reduce((acc, tags) => acc.concat(tags), []);
          if (!queries.length) {
              this.subscribe(filters);
+             callback();
              return;
          }
-         let comress = filters
+         let compress = filters
              .filter(f => f.initialData === TRUE)
              .some(f => f.compress);
          let data = {
@@ -77,7 +87,7 @@ export class SseConnection implements InternalConnection {
              fabric: this.config.fabric,
              filters: {
                  once: TRUE,
-                 compress: comress ? TRUE : FALSE,
+                 compress: compress ? TRUE : FALSE,
                  initialData: TRUE,
                  queries: queries
              }
@@ -113,7 +123,7 @@ export class SseConnection implements InternalConnection {
                          if (!queries.length) {
                              self.eventSource?.disconnect();
                              self.eventSource = undefined;
-                             self.subscribe(filters);
+                             callback();
                          }
                      } catch (e) {
                          self.errorListener?.(e, false);
@@ -137,7 +147,7 @@ export class SseConnection implements InternalConnection {
          if (!queries.length) {
              return;
          }
-         let comress = filters
+         let compress = filters
              .filter(f => f.once !== TRUE)
              .some(f => f.compress);
          let data = {
@@ -147,7 +157,7 @@ export class SseConnection implements InternalConnection {
                  action: ADD,
                  filterType: "SQL",
                  once: FALSE,
-                 compress: comress ? TRUE : FALSE,
+                 compress: compress ? TRUE : FALSE,
                  initialData: FALSE,
                  queries: queries
              }

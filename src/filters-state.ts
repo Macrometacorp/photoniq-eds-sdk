@@ -85,8 +85,6 @@ export class FiltersState {
                         querySetWithFilter.errorCallbacks.push(query.errorListener);
                     }
                 } else {
-                    let callbacks = query.listener ? [query.listener] : [];
-                    let errorCallbacks = query.errorListener ? [query.errorListener] : [];
                     filterState.querySets.push({
                         querySet: querySet,
                         initialData: initialData,
@@ -95,7 +93,7 @@ export class FiltersState {
                         count: 0,
                         callbacks: query.listener ? [query.listener] : [],
                         errorCallbacks: query.errorListener ? [query.errorListener] : [],
-                    })
+                    });
                 }
                 let filterAfter = this.calculateFilter(ADD, query.query, filterState);
                 if (!this.equalFiltersWithoutQueries(filterBefore, filterAfter)) {
@@ -143,20 +141,17 @@ export class FiltersState {
     removeQueries(queries: string[], querySet: QuerySet): Filter | undefined  {
         let queriesToRemove: string[] = [];
         for (const query of queries) {
-            let remove = true;
+
             let filterState = this.queries.get(query);
             if (filterState) {
                 let index = filterState.querySets.findIndex(qs => qs.querySet === querySet);
                 if (index > -1) {
                     filterState.querySets.splice(index, 1);
                 }
-                if (filterState.querySets.length) {
-                    remove = false;
+                if (!filterState.querySets.length) {
+                    this.queries.delete(query);
+                    queriesToRemove.push(query);
                 }
-            }
-            if (remove) {
-                this.queries.delete(query);
-                queriesToRemove.push(query);
             }
         }
         if (queriesToRemove.length) {

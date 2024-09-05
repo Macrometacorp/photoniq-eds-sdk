@@ -62,13 +62,9 @@ export class WsConnection implements InternalConnection {
                             let queryData = data[query];
                             let filterState = self.filtersState.filterForQuery(query);
                             if (filterState) {
-
                                 self.filtersState.increment(filterState);
-
                                 self.messageListener?.(query, filterState, queryData);
-
                                 let filterToRemove = self.filtersState.tryToRemove(filterState, query);
-
                                 if (filterToRemove) {
                                     self.send([filterToRemove]);
                                 }
@@ -130,7 +126,6 @@ export class WsConnection implements InternalConnection {
             for (const filter of filters) {
                 this.ws?.send(JSON.stringify(filter));
             }
-
         }
     }
      
