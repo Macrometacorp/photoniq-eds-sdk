@@ -1,6 +1,6 @@
 {
   "name": "photoniq-eds-sdk",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "SDK for the PhotonIQ EDS",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
