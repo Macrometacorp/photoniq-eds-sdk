@@ -17,18 +17,23 @@ export const REMOVE: string = "remove";
 export class FiltersState {
 
     private readonly queries: Map<string, FilterState>;
+    private readonly queriesToRemove: string[];
     private readonly config: Config;
     private readonly globalListener: (type: EDSEvent) => void;
 
     constructor(config: Config, globalListener: (event: EDSEvent) => void) {
         this.config = config;
         this.queries = new Map();
+        this.queriesToRemove = [];
         this.globalListener = globalListener;
     }
 
     private calculateFilter(action: string, query: string, filterState: FilterState): Filter {
-        const initialData = filterState.querySets.some(qs => qs.initialData) ? TRUE : undefined;
+        // if any QuerySet requested initial data for query than query should request initial data for this QuerySet.
+        const initialData = filterState.querySets.some(qs => qs.initialData && qs.count === 0) ? TRUE : undefined;
+        // if all QuerySet's request only initial data (`retieve(..)` method) then joined filter should have `once` = true.
         const once = filterState.querySets.every(qs => qs.once) ? TRUE : undefined;
+        // if any QuerySet requested compressed data then we need to retrieve it as compress for all QuerySet's.
         const compress = filterState.querySets.some(qs => qs.compress) ? TRUE : undefined;
 
         return {
@@ -51,6 +56,9 @@ export class FiltersState {
     public tryToRemove(filterState: FilterState, query: string): Filter | undefined {
         if (filterState.querySets.every(qs => qs.once)) {
             this.queries.delete(query);
+            if (this.queriesToRemove.indexOf(query) == -1) {
+                this.queriesToRemove.push(query);
+            }
             return {
                 action: REMOVE,
                 queries: [query]
@@ -97,6 +105,7 @@ export class FiltersState {
                 }
                 let filterAfter = this.calculateFilter(ADD, query.query, filterState);
                 if (!this.equalFiltersWithoutQueries(filterBefore, filterAfter)) {
+                    filterState.sent = false;
                     let filter = filtersToAdd.find(f => this.equalFiltersWithoutQueries(f, filterAfter));
                     if (filter) {
                         filter.queries.push(query.query);
@@ -114,7 +123,8 @@ export class FiltersState {
                         count: 0,
                         callbacks: query.listener ? [query.listener] : [],
                         errorCallbacks: query.errorListener ? [query.errorListener] : [],
-                    }]
+                    }],
+                    sent: false
                 };
                 this.queries.set(query.query, filterState);
                 let filterAfter = this.calculateFilter(ADD, query.query, filterState);
@@ -138,10 +148,8 @@ export class FiltersState {
         return this.removeQueries(queries, querySet);
     }
 
-    removeQueries(queries: string[], querySet: QuerySet): Filter | undefined  {
-        let queriesToRemove: string[] = [];
+    public removeQueries(queries: string[], querySet: QuerySet): Filter | undefined  {
         for (const query of queries) {
-
             let filterState = this.queries.get(query);
             if (filterState) {
                 let index = filterState.querySets.findIndex(qs => qs.querySet === querySet);
@@ -150,20 +158,22 @@ export class FiltersState {
                 }
                 if (!filterState.querySets.length) {
                     this.queries.delete(query);
-                    queriesToRemove.push(query);
+                    if (this.queriesToRemove.indexOf(query) == -1) {
+                        this.queriesToRemove.push(query);
+                    }
                 }
             }
         }
-        if (queriesToRemove.length) {
+        if (this.queriesToRemove.length) {
             return {
                 action: REMOVE,
-                queries: queriesToRemove
+                queries: this.queriesToRemove
             };
         }
         return undefined;
     }
     
-    activeFilters(): Filter[] {
+    public activeFilters(): Filter[] {
         let filters = [];
         for (const [query, filterState] of this.queries) {
             const filter: Filter = this.calculateFilter(ADD, query, filterState);
@@ -176,7 +186,57 @@ export class FiltersState {
         }
         return filters;
     }
+
+    public activeNotSentFilters(): Filter[] {
+        let filters = [];
+        for (const [query, filterState] of this.queries) {
+            if (filterState.sent) continue;
+            const filter: Filter = this.calculateFilter(ADD, query, filterState);
+            let filterFound = filters.find(f => this.equalFiltersWithoutQueries(f, filter));
+            if (filterFound) {
+                filterFound.queries.push(query);
+            } else {
+                filters.push(filter);
+            }
+        }
+        return filters;
+    }
     
+    public activeFiltersSent(filters: Filter[]): void {
+        for (let filter of filters) {
+            this.activeFilterSent(filter);
+        }
+    }
+
+    public activeFilterSent(filter: Filter): void {
+        for (let query of filter.queries) {
+            let filterState = this.queries.get(query);
+            if (filterState) {
+                filterState.sent = true;
+            }
+        }
+    }
+
+    public allFiltersNotSent(): void {
+        for (const [query, filterState] of this.queries) {
+            filterState.sent = false;
+        }
+    }
+
+    public removeFilter(): Filter | undefined {
+        let queriesToRemove = this.queriesToRemove.filter(q => !this.queries.has(q));
+        if (queriesToRemove.length === 0) return undefined;
+        return {
+            action: REMOVE,
+            queries: queriesToRemove
+        }
+    }
+
+    public removeFilterSent(): void {
+        // remove all elements
+        this.queriesToRemove.splice(0, this.queriesToRemove.length);
+    }
+
     public handleErrorListeners(errorCallbacks: any[], query: string, edsEvent: EDSEvent): void {
         for (let callback of errorCallbacks) {
             try {

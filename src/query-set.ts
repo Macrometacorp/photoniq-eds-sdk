@@ -51,10 +51,8 @@ export class QuerySet {
             errorListener: errorListener,
             compress: false
         }];
-        let filtersToAdd = this.filtersState.addQueries(queries, false, false, false, this);
-        for (const filterToAdd of filtersToAdd) {
-            this.connection.send([filterToAdd]);
-        }
+        this.filtersState.addQueries(queries, false, false, false, this);
+        this.connection.flush();
     }
     
     /**
@@ -71,10 +69,8 @@ export class QuerySet {
             errorListener: errorListener,
             compress: compress === true
         }];
-        let filtersToAdd = this.filtersState.addQueries(queries, true, false, compress === true, this);
-        for (const filterToAdd of filtersToAdd) {
-            this.connection.send([filterToAdd]);
-        }
+        this.filtersState.addQueries(queries, true, false, compress === true, this);
+        this.connection.flush();
     }
     
     /**
@@ -91,10 +87,8 @@ export class QuerySet {
             errorListener: errorListener,
             compress: compress === true
         }];
-        let filtersToAdd = this.filtersState.addQueries(queries, true, true, compress === true, this);
-        for (const filterToAdd of filtersToAdd) {
-            this.connection.send([filterToAdd]);
-        }
+        this.filtersState.addQueries(queries, true, true, compress === true, this);
+        this.connection.flush();
     }
     
     /**
@@ -102,20 +96,16 @@ export class QuerySet {
      * @param query SQL query to be unsubscribed
      */
     public unsubscribe(query: string): void {
-        let filterToRemove = this.filtersState.removeQueries([query], this);
-        if (filterToRemove) {
-            this.connection.send([filterToRemove]);
-        }
+        this.filtersState.removeQueries([query], this);
+        this.connection.flush();
     }
     
     /**
      * Unsubscribe from all query in the QuerySet.
      */
     public unsubscribeAll(): void {
-        let filter = this.filtersState.removeAllQueries(this);
-        if (filter) {
-            this.connection.send([filter]);
-        }
+        this.filtersState.removeAllQueries(this);
+        this.connection.flush();
     }
     
     /**

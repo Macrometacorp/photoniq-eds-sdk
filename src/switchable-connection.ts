@@ -205,7 +205,14 @@ export class SwitchableConnection implements Connection {
     send(filters: Filter[]): void {
         this.connection?.send(filters);
     }
-    
+
+    /**
+     * Flush data
+     */
+    flush(): void {
+        this.connection?.flush();
+    }
+
     /**
      * Disconnect from web socket
      */

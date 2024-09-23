@@ -18,9 +18,16 @@ export class SseConnection implements InternalConnection {
     private readonly headers: HeadersInit;
     private eventSource?: EventSource;
     private status: ConnectionStatus;
+    private retrievingInitialData: boolean;
+    private retrieveTimeout: number | undefined;
+    /**
+     * When initial data retrieved long time and flush timeout passed needs to check flag to retrieve data again.
+     */
+    private retrieveInitialDataAgain: boolean;
     
     private readonly ENCODED_GZ_CONTENT: string = "encoded-gz-content: ";
     private readonly FAILED_TO_PARSE_QUERY: string = "Failed to parse query: ";
+    private readonly FLUSH_TIMEOUT_MS: number = 20;
 
     private openListener?: (type: any) => void;
     private propertiesListener?: (type: any) => void;
@@ -32,6 +39,8 @@ export class SseConnection implements InternalConnection {
         this.config = config;
         this.filtersState = filtersState;
         this.url = `https://${this.config.host}/api/es/sse/v1/subscribe`;
+        this.retrievingInitialData = false;
+        this.retrieveInitialDataAgain = false;
         this.headers = {
             'Content-Type': 'application/json',
             'Authorization': `${this.config.apiKey}`,
@@ -39,21 +48,45 @@ export class SseConnection implements InternalConnection {
         };
         this.status = ConnectionStatus.Closed;
     }
-    
+
     send(filters: Filter[]): void {
-        if (filters?.length) {
-            let activeFilters = this.filtersState.activeFilters();
-            if (this.eventSource) {
-                this.eventSource.disconnect();
-                this.eventSource = undefined;
-                this.retrieve(filters, () => {
+    }
+
+    public flush(): void {
+        let self = this;
+        if (!this.retrieveTimeout) {
+            this.retrieveTimeout = setTimeout(function() {
+                self.retrieveTimeout = undefined;
+                if (!self.retrievingInitialData) {
+                    self.flushNow();
+                }
+            }, this.FLUSH_TIMEOUT_MS);
+        }
+    }
+
+    private flushNow() {
+        let activeNotSentFilters = this.filtersState.activeNotSentFilters();
+        let activeFilters = this.filtersState.activeFilters();
+        let initialDataNotSentQueries = activeNotSentFilters
+            .filter(f => f.initialData === TRUE)
+            .map(f => f.queries)
+            .reduce((acc, tags) => acc.concat(tags), []);
+        if (initialDataNotSentQueries.length) {
+            let compress = activeNotSentFilters
+                .filter(f => f.initialData === TRUE)
+                .some(f => f.compress);
+            this.retrievingInitialData = true;
+            this.retrieve(initialDataNotSentQueries, compress, () => {
+                this.filtersState.activeFiltersSent(activeNotSentFilters);
+                this.retrievingInitialData  = false;
+                if (this.retrieveInitialDataAgain) {
+                    this.flushNow();
+                } else {
                     this.subscribe(activeFilters);
-                });
-            } else {
-                this.retrieve(activeFilters, () => {
-                    this.subscribe(activeFilters);
-                });
-            }
+                }
+            });
+        } else {
+            this.subscribe(activeFilters);
         }
     }
 
@@ -62,26 +95,10 @@ export class SseConnection implements InternalConnection {
      */
      public connect(): void {
          if (this.eventSource) throw Error("SSE connection already opened");
-
-         let activeFilters = this.filtersState.activeFilters();
-         this.retrieve(activeFilters, () => {
-             this.subscribe(activeFilters);
-         });
+         this.flush();
      }
 
-     private retrieve(filters: Filter[], callback: () => void) {
-         let queries = filters
-             .filter(f => f.initialData === TRUE)
-             .map(f => f.queries)
-             .reduce((acc, tags) => acc.concat(tags), []);
-         if (!queries.length) {
-             this.subscribe(filters);
-             callback();
-             return;
-         }
-         let compress = filters
-             .filter(f => f.initialData === TRUE)
-             .some(f => f.compress);
+     private retrieve(queries: string[], compress: boolean, callback: () => void) {
          let data = {
              type: "collection",
              fabric: this.config.fabric,
@@ -95,6 +112,8 @@ export class SseConnection implements InternalConnection {
          let self = this;
          if (!this.eventSource) {
              this.openListener?.("SSE connection opened");
+         } else {
+             this.eventSource.disconnect();
          }
          this.eventSource = new EventSource(this.url, this.headers);
          this.eventSource.onOpen((event) => {
@@ -128,7 +147,6 @@ export class SseConnection implements InternalConnection {
                      } catch (e) {
                          self.errorListener?.(e, false);
                      }
-
                  }
              });
          });
@@ -139,13 +157,17 @@ export class SseConnection implements InternalConnection {
      }
 
      private subscribe(filters: Filter[]) {
-
          let queries = filters
              .filter(f => f.once !== TRUE)
              .map(f => f.queries)
              .reduce((acc, tags) => acc.concat(tags), []);
          if (!queries.length) {
              return;
+         }
+         if (!this.eventSource) {
+             this.openListener?.("SSE connection opened");
+         } else {
+             this.eventSource.disconnect();
          }
          let compress = filters
              .filter(f => f.once !== TRUE)
@@ -217,6 +239,7 @@ export class SseConnection implements InternalConnection {
      }
      
      public disconnect(): boolean {
+         this.retrieveTimeout = undefined;
          if (this.eventSource) {
              this.status = ConnectionStatus.Closing;
              this.eventSource?.disconnect();
@@ -246,12 +269,12 @@ export class SseConnection implements InternalConnection {
                      let queryData = data[query];
                      let filterState = this.filtersState.filterForQuery(query);
                      if (filterState) {
-
                          this.filtersState.increment(filterState);
-
                          this.messageListener?.(query, filterState, queryData);
-
-                         this.filtersState.tryToRemove(filterState, query);
+                         let filterToRemove = this.filtersState.tryToRemove(filterState, query);
+                         if (filterToRemove) {
+                             this.flush();
+                         }
                      }
                  }
                  return true;

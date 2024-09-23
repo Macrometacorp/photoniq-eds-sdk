@@ -87,6 +87,7 @@ export type EDSEventMessage = {
 export interface Connection {
     connect(): void;
     send(filters: Filter[]): void;
+    flush(): void;
     disconnect(): boolean;
     getStatus(): ConnectionStatus;
     getId(): string | undefined;
@@ -120,6 +121,7 @@ export type Filter = {
 
 export type FilterState = {
     querySets: QuerySetWithFilter[];
+    sent: boolean;
 };
 
 export type QuerySetWithFilter = {

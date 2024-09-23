@@ -64,10 +64,8 @@ export class WsConnection implements InternalConnection {
                             if (filterState) {
                                 self.filtersState.increment(filterState);
                                 self.messageListener?.(query, filterState, queryData);
-                                let filterToRemove = self.filtersState.tryToRemove(filterState, query);
-                                if (filterToRemove) {
-                                    self.send([filterToRemove]);
-                                }
+                                self.filtersState.tryToRemove(filterState, query);
+                                self.flush();
                             }
                         }
                     } else {
@@ -120,11 +118,26 @@ export class WsConnection implements InternalConnection {
     public onError(listener: (event: any, server: boolean) => void): void {
         this.errorListener = listener;
     }
-    
+
     public send(filters: Filter[]): void {
         if (this.getStatus() === ConnectionStatus.Open) {
             for (const filter of filters) {
                 this.ws?.send(JSON.stringify(filter));
+            }
+        }
+    }
+
+    flush(): void {
+        if (this.getStatus() === ConnectionStatus.Open) {
+            let removeFilter = this.filtersState.removeFilter();
+            if (removeFilter) {
+                this.ws?.send(JSON.stringify(removeFilter));
+                this.filtersState.removeFilterSent();
+            }
+            let activeNotSentFilters = this.filtersState.activeNotSentFilters();
+            for (const filter of activeNotSentFilters) {
+                this.ws?.send(JSON.stringify(filter));
+                this.filtersState.activeFilterSent(filter);
             }
         }
     }

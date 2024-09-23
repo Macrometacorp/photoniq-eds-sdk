@@ -11,6 +11,8 @@ export class EventSource {
     private messageListener?: (event: any) => void;
     private errorListener?: (event: any) => void;
     private closeListener?: (event: any) => void;
+    private disconnected: boolean = false;
+
     
     constructor(url: string, headers: HeadersInit) {
         this.url = url;
@@ -55,6 +57,9 @@ export class EventSource {
             
             let buffer = "";
             this.reader = stream.getReader();
+            if (this.disconnected) {
+                this.disconnect();
+            }
             let streamResult: ReadableStreamReadResult<Uint8Array>;
             while (!(streamResult = await this.reader.read()).done) {
                 let result = new TextDecoder('utf-8').decode(streamResult.value);
@@ -104,6 +109,7 @@ export class EventSource {
     }
 
     public disconnect() {
+        this.disconnected = true;
         this.reader?.cancel();
     }
 

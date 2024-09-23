@@ -19,10 +19,6 @@ export class QueryBatch {
     private readonly querySet: QuerySet;
     private readonly connection: SwitchableConnection;
     private readonly filtersState: FiltersState;
-    private subscribeQueries: Query[] = [];
-    private retrieveAndSubscribeQueries: Query[] = [];
-    private retrieveQueries: Query[] = [];
-    private unsubscribeQueries: string[] = [];
     
     /** @ignore */
     constructor(querySet: QuerySet,
@@ -40,12 +36,13 @@ export class QueryBatch {
      * @param errorListener callback function which returns error result as an instance of EDSEventError
      */
     public subscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void): QueryBatch {
-        this.subscribeQueries.push({
+        let queries = [{
             query: query,
             listener: listener,
             errorListener: errorListener,
             compress: false
-        });
+        }];
+        this.filtersState.addQueries(queries, false, false, false, this.querySet);
         return this;
     }
     
@@ -57,12 +54,13 @@ export class QueryBatch {
      * @param compress compress initial data
      */
     public retrieveAndSubscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): QueryBatch {
-        this.retrieveAndSubscribeQueries.push({
+        let queries = [{
             query: query,
             listener: listener,
             errorListener: errorListener,
             compress: compress === true
-            });
+        }];
+        this.filtersState.addQueries(queries, true, false, compress === true, this.querySet);
         return this;
     }
     
@@ -74,12 +72,13 @@ export class QueryBatch {
      * @param compress compress initial data
      */
     public retrieve(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): QueryBatch {
-        this.retrieveQueries.push({
+        let queries = [{
             query: query,
             listener: listener,
             errorListener: errorListener,
             compress: compress === true
-            });
+        }];
+        this.filtersState.addQueries(queries, true, true, compress === true, this.querySet);
         return this;
     }
     
@@ -88,7 +87,7 @@ export class QueryBatch {
      * @param query SQL query to be unsubscribed
      */
     public unsubscribe(query: string): QueryBatch {
-        this.unsubscribeQueries.push(query);
+        this.filtersState.removeQueries([query], this.querySet);
         return this;
     }
     
@@ -96,31 +95,6 @@ export class QueryBatch {
      * Assemble list of queries to batch request
      */
     public assemble(): void {
-        let retrieveCompress = this.retrieveQueries.some(q => q.compress);
-        let filters = this.filtersState.addQueries(this.retrieveQueries, true, true, retrieveCompress, this.querySet);
-
-        let retrieveAndSubscribeCompress = this.retrieveAndSubscribeQueries.some(q => q.compress);
-        let retrieveAndSubscribeFilters = this.filtersState.addQueries(this.retrieveAndSubscribeQueries, true, false, retrieveAndSubscribeCompress, this.querySet);
-        this.joinFilters(filters, retrieveAndSubscribeFilters);
-
-        let subscribeFilters = this.filtersState.addQueries(this.subscribeQueries, false, false, false, this.querySet);
-        this.joinFilters(filters, subscribeFilters);
-        
-        let unsubscribeFilter = this.filtersState.removeQueries(this.unsubscribeQueries, this.querySet);
-        if (unsubscribeFilter) {
-            filters.push(unsubscribeFilter);
-        }
-        this.connection.send(filters);
-    }
-
-    private joinFilters(target: Filter[], source: Filter[]) {
-        for (const sourceFilter of source) {
-            let filter = target.find(f => this.filtersState.equalFiltersWithoutQueries(f, sourceFilter));
-            if (filter) {
-                filter.queries.push(...sourceFilter.queries);
-            } else {
-                target.push(sourceFilter);
-            }
-        }
+        this.connection.flush();
     }
 }
