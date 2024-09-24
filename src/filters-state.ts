@@ -42,7 +42,6 @@ export class FiltersState {
             initialData: initialData,
             once: once,
             compress: compress,
-            filterType: this.config.queryType
         };
     }
 

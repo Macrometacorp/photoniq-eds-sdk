@@ -37,6 +37,22 @@ qs.retrieveAndSubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", 
   console.log(`Event: `, event);
 });
 
+// Listen changes, errors, and set options
+qs.retrieveAndSubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", (event) => {
+  console.log(`Event: `, event);
+}, (error) => {
+  console.log(`Error: `, error);
+}, {
+  "compress": true
+});
+
+// Listen changes, and set options
+qs.retrieveAndSubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", (event) => {
+  console.log(`Event: `, event);
+}, {
+  "compress": true
+});
+
 // Listen data for changes.
 qs.subscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>", (event) => {
   console.log(`Event: `, event);
@@ -47,6 +63,31 @@ qs.unsubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>");
 
 // Unsubscribe from all queries
 qs.unsubscribeAll();
+```
+
+## Custom Configuration
+
+Can be configured each connection:
+
+```JavaScript
+let connection = PhotoniqEdsSdk.connect({
+  host: "<YOUR-PHOTONIQ>.photoniq.macrometa.io",
+  customerId: "<YOUR-CUSTOMER-ID>",
+  apiKey: "<YOUR-API-KEY>",
+  fabric: "<YOUR-FABRIC>",
+  autoReconnect: true, // default: true
+  connectionTypes: [   // default: ["ws"]
+    "ws",              // primary connection
+    {                  // failover connection
+      type: "sse",     // type of connection, requred field
+      url: "https://<YOUR-PHOTONIQ>.macrometa.io/api/es/sse/v1/subscribe",
+      customerId: "<YOUR-CUSTOMER-ID>",
+      apiKey: "<YOUR-API-KEY>",
+      fabric: "<YOUR-FABRIC>"
+    }
+  ]
+});
+
 ```
 
 ## Use as a module

@@ -2,10 +2,9 @@ import {
     Config,
     ConnectionProperties,
     ConnectionStatus,
-    Filter,
     FilterState,
     InternalConnection,
-    PHOTONIQ_ES,
+    PHOTONIQ_ES, WsSubConfig,
 } from "../types";
 import { FiltersState } from "../filters-state";
 import { tryToDecodeData } from "../utils";
@@ -19,6 +18,7 @@ export class WsConnection implements InternalConnection {
     private readonly DEFAULT_PING_SECONDS = 29;
     
     private config: Config;
+    private subConfig: WsSubConfig;
     private filtersState: FiltersState;
     private openListener?: (type: any) => void;
     private propertiesListener?: (type: any) => void;
@@ -29,17 +29,22 @@ export class WsConnection implements InternalConnection {
     private pingIntervalId: number | undefined;
     private properties: ConnectionProperties = {};
     
-    constructor(config: Config, filtersState: FiltersState) {
+    constructor(config: Config, subConfig: WsSubConfig, filtersState: FiltersState) {
         this.config = config;
+        this.subConfig = subConfig;
         this.filtersState = filtersState;
     }
     
     public connect(): void {
         let self = this;
-        const url: string = `wss://${this.config.host}/api/es/v1/subscribe?type=collection` +
-            `&x-customer-id=${this.config.customerId}` +
-            `&apiKey=${this.config.apiKey}` +
-            `&fabric=${this.config.fabric}` +
+        let urlWithoutQuery = this.subConfig.url ? this.subConfig.url : `wss://${this.config.host}/api/es/v1/subscribe`;
+        let apiKey = this.subConfig.apiKey ? this.subConfig.apiKey : this.config.apiKey;
+        let fabric = this.subConfig.fabric ? this.subConfig.fabric : (this.config.fabric ? this.config.fabric : "_system");
+        let customerId = this.subConfig.fabric ? this.subConfig.fabric : this.config.customerId;
+        const url: string = `${urlWithoutQuery}?type=collection` +
+            `&x-customer-id=${customerId}` +
+            `&apiKey=${apiKey}` +
+            `&fabric=${fabric}` +
             `&filters=${this.STUB_FILTER}`;
 
         this.ws = new WebSocket(url);
@@ -49,7 +54,12 @@ export class WsConnection implements InternalConnection {
 
             // send current subscribed filters.
             let filters = self.filtersState.activeFilters();
-            self.send(filters);
+            if (self.getStatus() === ConnectionStatus.Open) {
+                for (const filter of filters) {
+                    self.ws?.send(JSON.stringify(filter));
+                    self.filtersState.activeFilterSent(filter);
+                }
+            }
 
             self.updatePingInterval();
         });
@@ -119,14 +129,6 @@ export class WsConnection implements InternalConnection {
         this.errorListener = listener;
     }
 
-    public send(filters: Filter[]): void {
-        if (this.getStatus() === ConnectionStatus.Open) {
-            for (const filter of filters) {
-                this.ws?.send(JSON.stringify(filter));
-            }
-        }
-    }
-
     flush(): void {
         if (this.getStatus() === ConnectionStatus.Open) {
             let removeFilter = this.filtersState.removeFilter();
@@ -134,6 +136,7 @@ export class WsConnection implements InternalConnection {
                 this.ws?.send(JSON.stringify(removeFilter));
                 this.filtersState.removeFilterSent();
             }
+
             let activeNotSentFilters = this.filtersState.activeNotSentFilters();
             for (const filter of activeNotSentFilters) {
                 this.ws?.send(JSON.stringify(filter));
@@ -181,12 +184,12 @@ export class WsConnection implements InternalConnection {
             this.pingIntervalId = undefined;
         }
         let self = this;
-        if (!self.config.pingSeconds || self.config.pingSeconds > 0) {
+        if (!self.subConfig.pingSeconds || self.subConfig.pingSeconds > 0) {
             this.pingIntervalId = setInterval(() => {
                 if (self.getStatus() === ConnectionStatus.Open) {
                     self.ws?.send("{1}");
                 }
-            }, (self.config.pingSeconds ?? this.DEFAULT_PING_SECONDS) * 1000);
+            }, (self.subConfig.pingSeconds ?? this.DEFAULT_PING_SECONDS) * 1000);
         }
     }
     

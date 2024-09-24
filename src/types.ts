@@ -23,17 +23,56 @@ export const PHOTONIQ_ES: string = "x-photoniq-es";
  * @param apiKey ApiKey credentails
  * @param fabric fabric to be used. Default is `_system`
  * @param primaryConnection primary type of connection
- * @param pingSeconds seconds to send ping-pong messages for the server. Default is `29`  
  */
 export type Config = {
     host: string;
     customerId: string;
     apiKey: string;
     fabric?: string;
-    connectionTypes?: string[];
+    connectionTypes?: (string | SubConfig)[];
     autoReconnect?: boolean;
-    pingSeconds?: number;
+};
+
+/**
+ * @param type type of connection. Can be `ws` or `sse`
+ * @param url set custom url for connection.
+ * `ws` has default url `wss://{config.host}/api/es/v1/subscribe`
+ * `sse` has default url `https://{config.host}/api/es/sse/v1/subscribe`
+ * @param apiKey custom ApiKey credentails for connection
+ * @param fabric custom fabric to be usedfor connection. Default is `_system`
+ *
+ */
+export type SubConfig = {
+    type: string;
+    customerId?: string;
+    url?: string;
+    apiKey?: string;
+    fabric?: string;
     queryType?: string;
+}
+
+/**
+ * SubConfig for WebSocket connection
+ * @param pingSeconds seconds to send ping-pong messages for the server. Default is `29`
+ */
+export type WsSubConfig = SubConfig & {
+    pingSeconds?: number;
+}
+
+/**
+ * SubConfig for SSE connection
+ * @param flushTimeoutMs batch ubdated subscription for set miliseconds and then flush all changes. Default is `20`
+ */
+export type SseSubConfig = SubConfig & {
+    flushTimeoutMs?: number
+}
+
+/**
+ * Configure Query Options
+ * @param compress compress response data
+ */
+export type QueryOptions = {
+    compress?: boolean;
 };
 
 /**
@@ -83,10 +122,8 @@ export type EDSEventMessage = {
     retrieve: boolean;
 };
 
-
 export interface Connection {
     connect(): void;
-    send(filters: Filter[]): void;
     flush(): void;
     disconnect(): boolean;
     getStatus(): ConnectionStatus;
@@ -115,7 +152,6 @@ export type Filter = {
     initialData?: string;
     compress?: string;
     once?: string;
-    filterType?: string;
     queries: string[];
 };
 

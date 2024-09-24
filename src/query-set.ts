@@ -6,7 +6,7 @@
  * Written by Macrometa, Inc <product@macrometa.com>, May 2024
  */
 
-import { EDSEvent } from "./types";
+import { EDSEvent, QueryOptions } from "./types";
 import { QueryBatch } from "./query-batch";
 import { FiltersState } from "./filters-state";
 import { SwitchableConnection } from "./switchable-connection";
@@ -22,7 +22,6 @@ export type Query = {
     query: string;
     listener: (type: EDSEvent) => void;
     errorListener?: (type: EDSEvent) => void;
-    compress: boolean
 };
 
 /**
@@ -42,52 +41,67 @@ export class QuerySet {
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
-     * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param errorListenerOrOptions callback function which returns error result as an instance of EDSEventError or set query's options
+     * @param options query optons if `errorListenerOrOptions` argument used as `errorListener`
      */
-    public subscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void): void {
-        let queries = [{
-            query: query,
-            listener: listener,
-            errorListener: errorListener,
-            compress: false
-        }];
-        this.filtersState.addQueries(queries, false, false, false, this);
-        this.connection.flush();
+    public subscribe(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): void {
+        this.handleSubscription(query, listener, false, false, errorListenerOrOptions, options);
     }
     
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
-     * @param errorListener callback function which returns error result as an instance of EDSEventError
-     * @param compress compress initial data
+     * @param errorListenerOrOptions callback function which returns error result as an instance of EDSEventError or set query's options
+     * @param options query optons if `errorListenerOrOptions` argument used as `errorListener`
      */
-    public retrieveAndSubscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): void {
-        let queries = [{
-            query: query,
-            listener: listener,
-            errorListener: errorListener,
-            compress: compress === true
-        }];
-        this.filtersState.addQueries(queries, true, false, compress === true, this);
-        this.connection.flush();
+    public retrieveAndSubscribe(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): void {
+        this.handleSubscription(query, listener, true, false, errorListenerOrOptions, options);
     }
     
     /**
      * Retrieve query. Returns result as usual DB call.
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of EDSEventMessage
-     * @param errorListener callback function which returns error result as an instance of EDSEventError
-     * @param compress compress initial data
+     * @param errorListenerOrOptions callback function which returns error result as an instance of EDSEventError or set query's options
+     * @param options query optons if `errorListenerOrOptions` argument used as `errorListener`
      */
-    public retrieve(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): void {
-        let queries = [{
+    public retrieve(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): void {
+        this.handleSubscription(query, listener, true, true, errorListenerOrOptions, options);
+    }
+
+    private handleSubscription(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        initialData: boolean,
+        once: boolean,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): void {
+        let queryObj: Query = {
             query: query,
             listener: listener,
-            errorListener: errorListener,
-            compress: compress === true
-        }];
-        this.filtersState.addQueries(queries, true, true, compress === true, this);
+        };
+
+        // Emulate method overloading
+        if (typeof errorListenerOrOptions === 'function') {
+            queryObj.errorListener = errorListenerOrOptions;
+        } else if (typeof errorListenerOrOptions === 'object' && errorListenerOrOptions !== null) {
+            options = errorListenerOrOptions;
+        }
+
+        this.filtersState.addQueries([queryObj], initialData, once, options?.compress === true, this);
         this.connection.flush();
     }
     

@@ -8,7 +8,7 @@
 
 import { Query, QuerySet } from "./query-set";
 import { FiltersState } from "./filters-state";
-import { EDSEvent, Filter } from "./types";
+import { EDSEvent, QueryOptions } from "./types";
 import { SwitchableConnection } from "./switchable-connection";
 
 /**
@@ -33,55 +33,70 @@ export class QueryBatch {
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
-     * @param errorListener callback function which returns error result as an instance of EDSEventError
+     * @param errorListenerOrOptions callback function which returns error result as an instance of EDSEventError or set query's options
+     * @param options query optons if `errorListenerOrOptions` argument used as `errorListener`
      */
-    public subscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void): QueryBatch {
-        let queries = [{
-            query: query,
-            listener: listener,
-            errorListener: errorListener,
-            compress: false
-        }];
-        this.filtersState.addQueries(queries, false, false, false, this.querySet);
-        return this;
+    public subscribe(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): QueryBatch {
+        return this.handleSubscription(query, listener, false, false, errorListenerOrOptions, options);
     }
     
     /**
      * Subscribe to query. Returns result when update happens by the query
      * @param query SQL query to be subscribed
      * @param listener callback function which returns result as an instance of EDSEventMessage
-     * @param errorListener callback function which returns error result as an instance of EDSEventError
-     * @param compress compress initial data
+     * @param errorListenerOrOptions callback function which returns error result as an instance of EDSEventError or set query's options
+     * @param options query optons if `errorListenerOrOptions` argument used as `errorListener`
      */
-    public retrieveAndSubscribe(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): QueryBatch {
-        let queries = [{
-            query: query,
-            listener: listener,
-            errorListener: errorListener,
-            compress: compress === true
-        }];
-        this.filtersState.addQueries(queries, true, false, compress === true, this.querySet);
-        return this;
+    public retrieveAndSubscribe(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): QueryBatch {
+        return this.handleSubscription(query, listener, true, false, errorListenerOrOptions, options);
     }
     
     /**
      * Retrieve query. Returns result as usual DB call.
      * @param query SQL query to be executed
      * @param listener callback function which returns result as an instance of EDSEventMessage
-     * @param errorListener callback function which returns error result as an instance of EDSEventError
-     * @param compress compress initial data
+     * @param errorListenerOrOptions callback function which returns error result as an instance of EDSEventError or set query's options
+     * @param options query optons if `errorListenerOrOptions` argument used as `errorListener`
      */
-    public retrieve(query: string, listener: (type: EDSEvent) => void, errorListener?: (type: EDSEvent) => void, compress?: boolean): QueryBatch {
-        let queries = [{
+    public retrieve(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): QueryBatch {
+        return this.handleSubscription(query, listener, true, true, errorListenerOrOptions, options);
+    }
+
+    private handleSubscription(
+        query: string,
+        listener: (type: EDSEvent) => void,
+        initialData: boolean,
+        once: boolean,
+        errorListenerOrOptions?: (type: EDSEvent) => void | QueryOptions,
+        options?: QueryOptions): QueryBatch {
+        let queryObj: Query = {
             query: query,
             listener: listener,
-            errorListener: errorListener,
-            compress: compress === true
-        }];
-        this.filtersState.addQueries(queries, true, true, compress === true, this.querySet);
+        };
+
+        // Emulate method overloading
+        if (typeof errorListenerOrOptions === 'function') {
+            queryObj.errorListener = errorListenerOrOptions;
+        } else if (typeof errorListenerOrOptions === 'object' && errorListenerOrOptions !== null) {
+            options = errorListenerOrOptions;
+        }
+
+        this.filtersState.addQueries([queryObj], initialData, once, options?.compress === true, this.querySet);
         return this;
     }
-    
+
     /**
      * Unsubscribe from the query. 
      * @param query SQL query to be unsubscribed

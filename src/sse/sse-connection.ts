@@ -5,7 +5,7 @@ import {
     Filter,
     FilterState,
     InternalConnection,
-    PHOTONIQ_ES
+    PHOTONIQ_ES, SseSubConfig
 } from "../types";
 import {EventSource} from "./event-source"
 import {ADD, FALSE, FiltersState, TRUE} from "../filters-state";
@@ -13,8 +13,10 @@ import {decodeGzip} from "../utils";
 
 export class SseConnection implements InternalConnection {
     private readonly config: Config;
+    private subConfig: SseSubConfig;
     private readonly filtersState: FiltersState;
     private readonly url: string;
+    private readonly fabric: string;
     private readonly headers: HeadersInit;
     private eventSource?: EventSource;
     private status: ConnectionStatus;
@@ -27,7 +29,7 @@ export class SseConnection implements InternalConnection {
     
     private readonly ENCODED_GZ_CONTENT: string = "encoded-gz-content: ";
     private readonly FAILED_TO_PARSE_QUERY: string = "Failed to parse query: ";
-    private readonly FLUSH_TIMEOUT_MS: number = 20;
+    private readonly DEFAULT_FLUSH_TIMEOUT_MS: number = 20;
 
     private openListener?: (type: any) => void;
     private propertiesListener?: (type: any) => void;
@@ -35,21 +37,22 @@ export class SseConnection implements InternalConnection {
     private closeListener?: (type: any) => void;
     private errorListener?: (type: any, server: boolean) => void;
     
-    constructor(config: Config, filtersState: FiltersState) {
+    constructor(config: Config, subConfig: SseSubConfig, filtersState: FiltersState) {
         this.config = config;
+        this.subConfig = subConfig;
         this.filtersState = filtersState;
-        this.url = `https://${this.config.host}/api/es/sse/v1/subscribe`;
+        this.url = this.subConfig.url ? this.subConfig.url : `https://${this.config.host}/api/es/sse/v1/subscribe`;
+        let apiKey = this.subConfig.apiKey ? this.subConfig.apiKey : this.config.apiKey;
+        this.fabric = this.subConfig.fabric ? this.subConfig.fabric : (this.config.fabric ? this.config.fabric : "_system");
+        let customerId = this.subConfig.fabric ? this.subConfig.fabric : this.config.customerId;
         this.retrievingInitialData = false;
         this.retrieveInitialDataAgain = false;
         this.headers = {
             'Content-Type': 'application/json',
-            'Authorization': `${this.config.apiKey}`,
-            'x-customer-id': `${this.config.customerId}`,
+            'Authorization': `${apiKey}`,
+            'x-customer-id': `${customerId}`,
         };
         this.status = ConnectionStatus.Closed;
-    }
-
-    send(filters: Filter[]): void {
     }
 
     public flush(): void {
@@ -59,34 +62,39 @@ export class SseConnection implements InternalConnection {
                 self.retrieveTimeout = undefined;
                 if (!self.retrievingInitialData) {
                     self.flushNow();
+                } else {
+                    self.retrieveInitialDataAgain = true;
                 }
-            }, this.FLUSH_TIMEOUT_MS);
+            }, this.subConfig?.flushTimeoutMs !== undefined ? this.subConfig.flushTimeoutMs : this.DEFAULT_FLUSH_TIMEOUT_MS );
         }
     }
 
     private flushNow() {
         let activeNotSentFilters = this.filtersState.activeNotSentFilters();
-        let activeFilters = this.filtersState.activeFilters();
-        let initialDataNotSentQueries = activeNotSentFilters
-            .filter(f => f.initialData === TRUE)
-            .map(f => f.queries)
-            .reduce((acc, tags) => acc.concat(tags), []);
-        if (initialDataNotSentQueries.length) {
-            let compress = activeNotSentFilters
+        if (activeNotSentFilters.length > 0) {
+            let activeFilters = this.filtersState.activeFilters();
+            let initialDataNotSentQueries = activeNotSentFilters
                 .filter(f => f.initialData === TRUE)
-                .some(f => f.compress);
-            this.retrievingInitialData = true;
-            this.retrieve(initialDataNotSentQueries, compress, () => {
-                this.filtersState.activeFiltersSent(activeNotSentFilters);
-                this.retrievingInitialData  = false;
-                if (this.retrieveInitialDataAgain) {
-                    this.flushNow();
-                } else {
-                    this.subscribe(activeFilters);
-                }
-            });
-        } else {
-            this.subscribe(activeFilters);
+                .map(f => f.queries)
+                .reduce((acc, tags) => acc.concat(tags), []);
+            this.filtersState.activeFiltersSent(activeNotSentFilters);
+            if (initialDataNotSentQueries.length) {
+                let compress = activeNotSentFilters
+                    .filter(f => f.initialData === TRUE)
+                    .some(f => f.compress);
+                this.retrievingInitialData = true;
+                this.retrieve(initialDataNotSentQueries, compress, () => {
+                    this.retrievingInitialData  = false;
+                    if (this.retrieveInitialDataAgain) {
+                        this.retrieveInitialDataAgain = false;
+                        this.flushNow();
+                    } else {
+                        this.subscribe(activeFilters);
+                    }
+                });
+            } else {
+                this.subscribe(activeFilters);
+            }
         }
     }
 
@@ -101,7 +109,7 @@ export class SseConnection implements InternalConnection {
      private retrieve(queries: string[], compress: boolean, callback: () => void) {
          let data = {
              type: "collection",
-             fabric: this.config.fabric,
+             fabric: this.fabric,
              filters: {
                  once: TRUE,
                  compress: compress ? TRUE : FALSE,
@@ -129,10 +137,9 @@ export class SseConnection implements InternalConnection {
              self.errorListener?.(event, false);
          });
          this.eventSource.onMessage((message) => {
-             self.handleMessage(message).then(result => {
-                 if (result) {
+             self.handleMessage(message).then(data => {
+                 if (data) {
                      try {
-                         let data = JSON.parse(message);
                          for (let query in data) {
                              let index = queries.indexOf(query);
                              if (index > -1) {
@@ -174,10 +181,8 @@ export class SseConnection implements InternalConnection {
              .some(f => f.compress);
          let data = {
              type: "collection",
-             fabric: this.config.fabric,
+             fabric: this.fabric,
              filters: {
-                 action: ADD,
-                 filterType: "SQL",
                  once: FALSE,
                  compress: compress ? TRUE : FALSE,
                  initialData: FALSE,
@@ -261,10 +266,9 @@ export class SseConnection implements InternalConnection {
          return this.eventSource ? this.eventSource.getProperties() : {};
      }
 
-     private handleMessage(message: string): Promise<boolean> {
+     private handleMessage(message: string): Promise<any> {
          return this.tryToDecodeData(message).then( data => {
              if (!data.error) {
-
                  for (let query in data) {
                      let queryData = data[query];
                      let filterState = this.filtersState.filterForQuery(query);
@@ -277,10 +281,10 @@ export class SseConnection implements InternalConnection {
                          }
                      }
                  }
-                 return true;
+                 return data;
              } else {
                  this.errorListener?.(data, true);
-                 return false;
+                 return undefined;
              }
          });
      }

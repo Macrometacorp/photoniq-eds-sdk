@@ -10,14 +10,16 @@ import {
     Config,
     InternalConnection,
     ConnectionStatus,
-    Filter,
     ConnectionProperties,
     EDSEventType,
     EDSEvent,
     Connection,
     EDSEventError,
     EDSEventMessage,
-    FilterState
+    FilterState,
+    SubConfig,
+    WsSubConfig,
+    SseSubConfig
 } from "./types";
 import { WsConnection } from "./ws/ws-connection";
 import { SseConnection } from "./sse/sse-connection";
@@ -35,7 +37,7 @@ export class SwitchableConnection implements Connection {
      * For example, connectionTypes = ["ws", "sse"] means it will initially connect via WebSocket (ws).
      * If unsuccessful, it will try Server-Sent Events (sse), and then loop back to retry WebSocket if needed.
      */
-    private connectionTypes = ["ws"];
+    private connectionTypes: (string | WsSubConfig | SseSubConfig)[] = ["ws"];
     /**
      * Value `-1` means it has not been connected yet or disconnected manually.
      * Other values >= 0 mean the count of reconnections made before the established connection.
@@ -60,12 +62,19 @@ export class SwitchableConnection implements Connection {
         if (this.reconnection === -1) this.reconnection = 0;
 
         let connectionType = this.connectionTypes[this.reconnection % this.connectionTypes.length];
-        switch(connectionType) {
+        let connectionTypeStr = typeof connectionType === 'string' ? connectionType : connectionType.type;
+        switch(connectionTypeStr) {
             case "ws":
-                this.connection = new WsConnection(this.config, this.filtersState);
+                let wsSubConfig: WsSubConfig = typeof connectionType === 'string'
+                    ? { type: connectionType }
+                    : connectionType as WsSubConfig;
+                this.connection = new WsConnection(this.config, wsSubConfig, this.filtersState);
                 break;
             case "sse":
-                this.connection = new SseConnection(this.config, this.filtersState);
+                let sseSubConfig: SseSubConfig = typeof connectionType === 'string'
+                    ? { type: connectionType }
+                    : connectionType as SseSubConfig;
+                this.connection = new SseConnection(this.config, sseSubConfig, this.filtersState);
                 break;
             default:
                 throw new Error(`Connection type not supported: ${connectionType}`);
@@ -197,13 +206,6 @@ export class SwitchableConnection implements Connection {
         });
         
         this.connection.connect();
-    }
-    
-    /**
-     * Send data directly to web socket
-     */
-    send(filters: Filter[]): void {
-        this.connection?.send(filters);
     }
 
     /**

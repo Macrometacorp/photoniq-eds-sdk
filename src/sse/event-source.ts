@@ -12,7 +12,6 @@ export class EventSource {
     private errorListener?: (event: any) => void;
     private closeListener?: (event: any) => void;
     private disconnected: boolean = false;
-
     
     constructor(url: string, headers: HeadersInit) {
         this.url = url;
