@@ -7,11 +7,11 @@ import {
     PHOTONIQ_ES, WsSubConfig,
 } from "../types";
 import { FiltersState } from "../filters-state";
-import { tryToDecodeData } from "../utils";
+import {parametersToUrl, tryToDecodeData} from "../utils";
 
 export class WsConnection implements InternalConnection {
     
-    private readonly STUB_FILTER: string = "%7B%22action%22%3A%22remove%22%2C%22queries%22%3A%5B%22SELECT%20%2A%20FROM%20fake%22%5D%7D";
+    private readonly STUB_FILTER: string = `{"action":"remove","queries":["SELECT * FROM fake"]}`;
     /**
      * Default timeout of ping-pong requests in seconds 
      */
@@ -37,16 +37,19 @@ export class WsConnection implements InternalConnection {
     
     public connect(): void {
         let self = this;
-        let urlWithoutQuery = this.subConfig.url ? this.subConfig.url : `wss://${this.config.host}/api/es/v1/subscribe`;
+        let baseUrl = this.subConfig.baseUrl ? this.subConfig.baseUrl : `wss://${this.config.host}/api/es/v1/subscribe`;
         let apiKey = this.subConfig.apiKey ? this.subConfig.apiKey : this.config.apiKey;
         let fabric = this.subConfig.fabric ? this.subConfig.fabric : (this.config.fabric ? this.config.fabric : "_system");
         let customerId = this.subConfig.fabric ? this.subConfig.fabric : this.config.customerId;
-        const url: string = `${urlWithoutQuery}?type=collection` +
-            `&x-customer-id=${customerId}` +
-            `&apiKey=${apiKey}` +
-            `&fabric=${fabric}` +
-            `&filters=${this.STUB_FILTER}`;
+        let urlParameters = this.subConfig.urlParameters ? this.subConfig.urlParameters : this.config.urlParameters;
 
+        let url: string = baseUrl + parametersToUrl({...{
+                    "type": "collection",
+                    "x-customer-id": customerId,
+                    "apiKey":apiKey,
+                    "fabric": fabric,
+                    "filters" : this.STUB_FILTER
+                }, ...urlParameters});
         this.ws = new WebSocket(url);
 
         this.ws.addEventListener('open', function(event) {

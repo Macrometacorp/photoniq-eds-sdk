@@ -12,6 +12,8 @@
  */
  
 
+import {SubConfig} from "./types";
+
 /**
  * Fix bug on EDS side when query `SELECT prop1.prop1_1, prop2.prop2_1 FROM Coll`
  * returns data as single string property { "prop1.prop1_1": 111, "prop2.prop2_1": 222 } for initial data
@@ -60,5 +62,13 @@ export async function decodeGzip (encoded:string) {
     const decompressedStream = blob.stream().pipeThrough(cs);
     const response = await new Response(decompressedStream);
     return await response.text();
-  }
+}
+
+export function parametersToUrl(urlParameters: { [key: string]: string } = {}): string {
+    const queryString = Object.keys(urlParameters)
+        .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(urlParameters[key])}`)
+        .join('&');
+
+    return queryString ? `?${queryString}` : '';
+}
 

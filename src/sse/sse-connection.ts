@@ -9,7 +9,7 @@ import {
 } from "../types";
 import {EventSource} from "./event-source"
 import {ADD, FALSE, FiltersState, TRUE} from "../filters-state";
-import {decodeGzip} from "../utils";
+import {decodeGzip, parametersToUrl} from "../utils";
 
 export class SseConnection implements InternalConnection {
     private readonly config: Config;
@@ -41,7 +41,9 @@ export class SseConnection implements InternalConnection {
         this.config = config;
         this.subConfig = subConfig;
         this.filtersState = filtersState;
-        this.url = this.subConfig.url ? this.subConfig.url : `https://${this.config.host}/api/es/sse/v1/subscribe`;
+        let baseUrl = this.subConfig.baseUrl ? this.subConfig.baseUrl : `https://${this.config.host}/api/es/sse/v1/subscribe`;
+        let urlParameters = subConfig.urlParameters ? subConfig.urlParameters : config.urlParameters;
+        this.url = baseUrl + parametersToUrl(urlParameters);
         let apiKey = this.subConfig.apiKey ? this.subConfig.apiKey : this.config.apiKey;
         this.fabric = this.subConfig.fabric ? this.subConfig.fabric : (this.config.fabric ? this.config.fabric : "_system");
         let customerId = this.subConfig.fabric ? this.subConfig.fabric : this.config.customerId;

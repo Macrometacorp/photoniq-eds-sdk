@@ -15,29 +15,32 @@ import { QuerySet } from "./query-set";
 
 export const PHOTONIQ_ES: string = "x-photoniq-es";
 
-
 /**
  * Configure connection
  * @param host host of the connection
  * @param customerId customer id credentails
  * @param apiKey ApiKey credentails
  * @param fabric fabric to be used. Default is `_system`
- * @param primaryConnection primary type of connection
+ * @param urlParameters custom URL query parameters applied to a connection URL
+ * @param connectionTypes order of connections to use. Each Connection can be custom configured.
+ * @param autoReconnect autoReconnect to next connection in `connectionTypes` property while connection failed. By default: `true`
  */
 export type Config = {
     host: string;
     customerId: string;
     apiKey: string;
     fabric?: string;
+    urlParameters?: { [key: string]: string };
     connectionTypes?: (string | SubConfig)[];
     autoReconnect?: boolean;
 };
 
 /**
  * @param type type of connection. Can be `ws` or `sse`
- * @param url set custom url for connection.
+ * @param url set custom URL for connection.
  * `ws` has default url `wss://{config.host}/api/es/v1/subscribe`
  * `sse` has default url `https://{config.host}/api/es/sse/v1/subscribe`
+ * @param urlParameters custom URL query parameters applied to a connection URL
  * @param apiKey custom ApiKey credentails for connection
  * @param fabric custom fabric to be usedfor connection. Default is `_system`
  *
@@ -45,7 +48,8 @@ export type Config = {
 export type SubConfig = {
     type: string;
     customerId?: string;
-    url?: string;
+    baseUrl?: string;
+    urlParameters?: { [key: string]: string };
     apiKey?: string;
     fabric?: string;
     queryType?: string;
@@ -61,7 +65,7 @@ export type WsSubConfig = SubConfig & {
 
 /**
  * SubConfig for SSE connection
- * @param flushTimeoutMs batch ubdated subscription for set miliseconds and then flush all changes. Default is `20`
+ * @param flushTimeoutMs set a timeout for the subscription update, flush all changes after the specified duration. Default is `20`
  */
 export type SseSubConfig = SubConfig & {
     flushTimeoutMs?: number
