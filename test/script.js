@@ -1,3 +1,3 @@
-const photoniqEdsWs = require('photoniq-eds-ws')
+const photoniqEdsWs = require('photoniq-eds-sdk')
 
 console.log("");
