@@ -147,6 +147,33 @@ export class FiltersState {
         return this.removeQueries(queries, querySet);
     }
 
+    public getQueries(querySet?: QuerySet): string[] {
+        if (querySet === undefined) {
+            return Array.from(this.queries.keys());
+        }
+
+        let queries: string[] = [];
+        let all_queries = Array.from(this.queries.keys());
+
+        for (const query of all_queries) {
+            let filterState = this.queries.get(query);
+            if (filterState) {
+                let index = filterState.querySets.findIndex(qs => qs.querySet === querySet);
+                if (index > -1) {
+                    queries.push(query);
+                }
+            }
+        }
+
+        return queries;
+    }
+
+    public getQuerySets(): QuerySet[] {
+        return Array.from(this.queries.values()).reduce((acc, filterState) => {
+            return acc.concat(filterState.querySets.map(qs => qs.querySet));
+        }, [] as QuerySet[]);
+    }
+
     public removeQueries(queries: string[], querySet: QuerySet): Filter | undefined  {
         for (const query of queries) {
             let filterState = this.queries.get(query);

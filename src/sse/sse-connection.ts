@@ -300,11 +300,6 @@ export class SseConnection implements InternalConnection {
                  } catch (e) {
                      reject(e);
                  }
-             } else if (data.startsWith(this.FAILED_TO_PARSE_QUERY)) {
-                 resolve({
-                     error: data,
-                     code: 400
-                 })
              } else {
                  try {
                      resolve(JSON.parse(data));
