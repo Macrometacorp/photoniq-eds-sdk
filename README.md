@@ -178,6 +178,50 @@ connection.disconnect();
 |--------------|------------|------------------------|
 | return | `boolean` | `true` if disconnected; `false`  if it was not connected |
 
+### reconnect
+
+Forcefully disconnects from the WebSocket/SSE connection to immediately connect to the next configuration if it exists:
+```js
+connection.reconnect();
+```
+
+| **Argument** | **Type** | **Description** |
+|--------------|------------|------------------------|
+| return | `boolean` | `true` if disconnect triggered; `false`  if it was not connected or `autoReconnect` is `false` |
+
+### type
+
+Type of connection:
+```js
+connection.type();
+```
+
+| **Argument** | **Type** | **Description** |
+|--------------|------------|------------------------|
+| return | `string` | Possible values: `sse`, `ws`|
+
+### getQueries
+
+Get a list of all listened queries for the `connection`:
+```js
+connection.getQueries();
+```
+
+| **Argument** | **Type** | **Description** |
+|--------------|------------|------------------------|
+| return | `string[]` | List of all listened queries for the `connection` |
+
+### getQuerySets
+
+Get a list of all `QuerySet` instances for the `connection`:
+```js
+connection.getQuerySets();
+```
+
+| **Argument** | **Type** | **Description** |
+|--------------|------------|------------------------|
+| return | `QuerySet[]` | List of all `QuerySet` instances for the `connection` |
+
 # Query Set And Batch
 
 This abstract layer helps to manage a group of queries instead of working with each query independently. To initialize a new `QuerySet` instance, call the following method from the `Connection` instance:
@@ -253,6 +297,31 @@ Removes a subscription if the query was subscribed in the `QuerySet`. This appli
 querySet.unsubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>");
 ```
 
+### unubscribe
+
+Removes a subscription if the query was subscribed in the `QuerySet`. This applies only to the `retrieveAndSubscribe` and `subscribe` methods:
+```js
+querySet.unsubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>");
+```
+
+### unubscribeAll
+
+Removes all subscriptions in the `QuerySet`:
+```js
+querySet.unsubscribeAll();
+```
+
+### getQueries
+
+Get a list of all listened queries for the `QuerySet`:
+```js
+querySet.getQueries();
+```
+
+| **Argument** | **Type** | **Description** |
+|--------------|------------|------------------------|
+| return | `string[]` | List of all listened queries for the `QuerySet` |
+
 ### batch
 
 To make requests to the Event Delivery Service more efficient, it is possible to join them into one WebSocket/SSE message. This returns a `QueryBatch`  instance, which has the same methods (`retrieve`, `retrieveAndSubscribe`, `subscribe`, `unsubscribe`) as `QuerySet`.
@@ -271,13 +340,6 @@ queryBatch
     })
     .unsubscribe("SELECT * FROM <YOUR-COLLECTION> WHERE key=<YOUR-KEY>")
     .assemble();
-```
-
-### unubscribeAll
-
-Removes all subscriptions in the `QuerySet`:
-```js
-querySet.unsubscribeAll();
 ```
 
 

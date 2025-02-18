@@ -35,6 +35,10 @@ export class WsConnection implements InternalConnection {
         this.filtersState = filtersState;
     }
     
+    public type(): string {
+        return "ws";
+    }
+
     public connect(): void {
         let self = this;
         let baseUrl = this.subConfig.baseUrl ? this.subConfig.baseUrl : `wss://${this.config.host}/api/es/v1/subscribe`;

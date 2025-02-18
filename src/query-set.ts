@@ -129,4 +129,12 @@ export class QuerySet {
         return new QueryBatch(this, this.connection, this.filtersState);
     }
     
+    /**
+     * Get list of all queries in the QuerySet.
+     */
+
+    public getQueries(): string[] {
+        return this.filtersState.getQueries(this);
+    }
+
 }

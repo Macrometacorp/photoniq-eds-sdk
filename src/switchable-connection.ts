@@ -29,6 +29,8 @@ import { convertInitialData } from "./utils";
 
 export class SwitchableConnection implements Connection {
 
+    private readonly FAILED_TO_PARSE_QUERY: string = "Failed to parse query: ";
+
     private readonly config: Config;
     private readonly filtersState: FiltersState;
     private connection?: InternalConnection;
@@ -39,10 +41,15 @@ export class SwitchableConnection implements Connection {
      */
     private connectionTypes: (string | WsSubConfig | SseSubConfig)[] = ["ws"];
     /**
-     * Value `-1` means it has not been connected yet or disconnected manually.
-     * Other values >= 0 mean the count of reconnections made before the established connection.
+     * Value `-1` means it has not been connected yet or disconnected by the disconnect() method.
+     * Other values >= 0 mean the count of attempts was made before the established connection.
      */
-    private reconnection = -1;
+    private connectionAttempts = -1;
+
+    /**
+     * The count of reconnections was made before triggered disconnect() method.
+     */
+    private reconnections = 0;
     
     constructor(config: Config, globalListener: (event: EDSEvent) => void) {
         this.config = config;
@@ -59,9 +66,9 @@ export class SwitchableConnection implements Connection {
             this.connectionTypes = this.config.connectionTypes;
         }
         
-        if (this.reconnection === -1) this.reconnection = 0;
+        if (this.connectionAttempts === -1) this.connectionAttempts = 0;
 
-        let connectionType = this.connectionTypes[this.reconnection % this.connectionTypes.length];
+        let connectionType = this.connectionTypes[this.reconnections++ % this.connectionTypes.length];
         let connectionTypeStr = typeof connectionType === 'string' ? connectionType : connectionType.type;
         switch(connectionTypeStr) {
             case "ws":
@@ -82,9 +89,9 @@ export class SwitchableConnection implements Connection {
         
         let self = this;
         this.connection.onOpen(function(event) {
-            let reconnection = self.reconnection;
-            self.reconnection = 0;
-            if (reconnection === -1) {
+            let connectionAttempts = self.connectionAttempts;
+            self.connectionAttempts = 0;
+            if (connectionAttempts === -1) {
                 const edsEvent: EDSEvent = {
                     type: EDSEventType.Open,
                     connection: self,
@@ -147,9 +154,15 @@ export class SwitchableConnection implements Connection {
         this.connection.onError(function (data: any, server: boolean) {
             if (server) {
                 let msg = data.error;
-                const queryErrorPrefix: string = "Error parsing SQL query:";
-                if (msg.startsWith(queryErrorPrefix)) {
-                    let query = msg.substring(queryErrorPrefix.length, msg.indexOf("ERROR")).trim();
+                if (msg.startsWith(self.FAILED_TO_PARSE_QUERY)) {
+                    const regex = new RegExp(`^${self.FAILED_TO_PARSE_QUERY}"(.*?)" Error: "(.*?)"$`);
+                    const match = msg.match(regex);
+
+                    let query = "";
+                    if (match) {
+                        query = match[1];
+                        msg = match[2];
+                    }
                     const edsEvent: EDSEvent & EDSEventError = {
                         type: EDSEventType.ServerQueryError,
                         connection: self,
@@ -189,13 +202,14 @@ export class SwitchableConnection implements Connection {
 
         this.connection.onClose(function (event) {
             self.connection = undefined;
-            if (self.config.autoReconnect !== false && self.reconnection > -1) {
-                let millisToReconnect = Math.pow(2, 6 + self.reconnection++);
+            if (self.config.autoReconnect !== false && self.connectionAttempts > -1) {
+                let millisToReconnect = Math.pow(2, 6 + self.connectionAttempts++);
                 setTimeout(function() {
                     self.connect();
                 }, millisToReconnect);
             } else {
-                self.reconnection = -1;
+                self.connectionAttempts = -1;
+                self.reconnections = 0;
                 const edsEvent: EDSEvent = {
                     type: EDSEventType.Close,
                     connection: self,
@@ -205,7 +219,15 @@ export class SwitchableConnection implements Connection {
             }
         });
         
+        this.filtersState.resetSentFilters();
         this.connection.connect();
+    }
+
+    /**
+     * Type of the connection
+     */
+    type(): string | undefined {
+        return this.connection?.type();
     }
 
     /**
@@ -216,17 +238,29 @@ export class SwitchableConnection implements Connection {
     }
 
     /**
-     * Disconnect from web socket
+     * Disconnect from WebSocket/SSE
      */
     disconnect(): boolean {
-        if (this.reconnection !== -1) {
-            this.reconnection = -1;
+        if (this.connectionAttempts !== -1) {
+            this.connectionAttempts = -1;
             this.connection?.disconnect();
             return true;
         }
         return false;
     }
     
+    /**
+     * Forcefully disconnects from the WebSocket/SSE connection to immediately connect to the next configuration if it exists.
+     */
+    reconnect(): boolean {
+        if (this.connection && this.connectionAttempts !== -1 && this.config.autoReconnect !== false) {
+            this.connectionAttempts = 0;
+            this.connection?.disconnect();
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Get configuration of the connection
      */
@@ -238,7 +272,7 @@ export class SwitchableConnection implements Connection {
      * Check the connection status
      */
     getStatus(): ConnectionStatus {
-        if (this.reconnection === -1) {
+        if (this.connectionAttempts === -1) {
             return ConnectionStatus.Closed;
         } else if (this.connection) {
             return this.connection.getStatus();
@@ -273,5 +307,19 @@ export class SwitchableConnection implements Connection {
      */
     public querySet(): QuerySet {
         return new QuerySet(this, this.filtersState);
+    }
+
+    /**
+     * Get all Query Sets
+     */
+    public getQuerySets(): QuerySet[] {
+        return this.filtersState.getQuerySets();
+    }
+
+    /**
+     * Get all Queries
+     */
+    public getQueries(): string[] {
+        return this.filtersState.getQueries();
     }
 }
