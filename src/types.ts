@@ -137,6 +137,7 @@ export interface Connection {
 }
 
 export interface InternalConnection extends Connection  {
+    type(): string;
     onOpen(listener: (event: any) => void): void;
     onMessage(listener: (query: string, filterState: FilterState, data: any) => void): void;
     onProperties(listener: (event: any) => void): void;

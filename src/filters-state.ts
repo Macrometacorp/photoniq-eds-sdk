@@ -213,6 +213,13 @@ export class FiltersState {
         return filters;
     }
 
+    public resetSentFilters(): void {
+        let filters = [];
+        for (const [query, filterState] of this.queries) {
+            filterState.sent = false;
+        }
+    }
+
     public activeNotSentFilters(): Filter[] {
         let filters = [];
         for (const [query, filterState] of this.queries) {

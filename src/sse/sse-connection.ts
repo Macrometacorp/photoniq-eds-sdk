@@ -27,7 +27,6 @@ export class SseConnection implements InternalConnection {
      */
     private retrieveInitialDataAgain: boolean;
     
-    private readonly ENCODED_GZ_CONTENT: string = "encoded-gz-content: ";
     private readonly FAILED_TO_PARSE_QUERY: string = "Failed to parse query: ";
     private readonly DEFAULT_FLUSH_TIMEOUT_MS: number = 20;
 
@@ -55,6 +54,10 @@ export class SseConnection implements InternalConnection {
             'x-customer-id': `${customerId}`,
         };
         this.status = ConnectionStatus.Closed;
+    }
+
+    public type(): string {
+        return "sse";
     }
 
     public flush(): void {
@@ -293,16 +296,11 @@ export class SseConnection implements InternalConnection {
 
      private async tryToDecodeData (data: string): Promise<any> {
          return new Promise((resolve, reject) => {
-
-             if (data.startsWith(this.ENCODED_GZ_CONTENT)) {
+             try {
+                 resolve(JSON.parse(data));
+             } catch (e) {
                  try {
-                     decodeGzip(data.substring(this.ENCODED_GZ_CONTENT.length)).then( decoded => resolve(JSON.parse(decoded)));
-                 } catch (e) {
-                     reject(e);
-                 }
-             } else {
-                 try {
-                     resolve(JSON.parse(data));
+                     decodeGzip(data).then( decoded => resolve(JSON.parse(decoded)));
                  } catch (e) {
                      reject(e);
                  }

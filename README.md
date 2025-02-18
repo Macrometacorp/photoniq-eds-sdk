@@ -189,6 +189,17 @@ connection.reconnect();
 |--------------|------------|------------------------|
 | return | `boolean` | `true` if disconnect triggered; `false`  if it was not connected or `autoReconnect` is `false` |
 
+### type
+
+Type of connection:
+```js
+connection.type();
+```
+
+| **Argument** | **Type** | **Description** |
+|--------------|------------|------------------------|
+| return | `string` | Possible values: `sse`, `ws`|
+
 ### getQueries
 
 Get a list of all listened queries for the `connection`:
