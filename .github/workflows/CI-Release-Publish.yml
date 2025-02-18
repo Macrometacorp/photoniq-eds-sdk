@@ -7,8 +7,7 @@ permissions:
 'on':
   push:
     branches:
-      - main
-      - add-sse
+      - master
     tags-ignore:
       - '**'
     paths-ignore:
