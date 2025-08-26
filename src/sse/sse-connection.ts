@@ -216,6 +216,9 @@ export class SseConnection implements InternalConnection {
              if (this.status === ConnectionStatus.Closing) {
                  this.status = ConnectionStatus.Closed;
                  self.closeListener?.(event);
+             } else {
+                 self.errorListener?.(event, false);
+                 self.closeListener?.(event);
              }
          });
          if (this.status === ConnectionStatus.Closed) {
