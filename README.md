@@ -14,14 +14,14 @@ This quickstart guide will guide you through:
 
 Connect to Event Delivery Service, retrieve and subsribe to SQL:
 ```js
-let config = {
+import { connect } from 'photoniq-eds-sdk';
+
+let connection = connect({
     host: "<YOUR-PHOTONIQ>.photoniq.macrometa.io",
     customerId: "<YOUR-CUSTOMER-ID>",
     apiKey: "<YOUR-API-KEY>",
     fabric: "<YOUR-FABRIC>",
-};
-
-let connection = PhotoniqEdsSdk.connect(config);
+});
 
 let querySet = connection.querySet();
 
@@ -36,14 +36,16 @@ The example uses a WebSocket connection. To switch to an SSE connection, add con
 
 ---
 
-## Supported Methods
+## Supported Initial Methods
 
 ### Connect
 
 Create a new `Connection` instance and establish connection to PhotonIQ EDS server:
 
 ```js
-let connection: Connection = PhotoniqEdsSdk.connect(config);
+import { connect } from 'photoniq-eds-sdk';
+
+let connection: Connection = connect(config);
 ```
 
 ### Create
@@ -51,7 +53,19 @@ let connection: Connection = PhotoniqEdsSdk.connect(config);
 Create a new `Connection` instance:
 
 ```js
-let connection = PhotoniqEdsSdk.create(config);
+import { create } from 'photoniq-eds-sdk';
+
+let connection = create(config);
+```
+
+### Create
+
+Returns version of the instance:
+
+```js
+import { version } from 'photoniq-eds-sdk';
+
+console.log(version());
 ```
 
 #### `Config` instance schema:
@@ -380,11 +394,11 @@ let globalListener = function(event) {
     }
 };
 
-let connection = PhotoniqEdsSdk.connect({
-host: "<YOUR-PHOTONIQ>.photoniq.macrometa.io",
-customerId: "<YOUR-CUSTOMER-ID>",
-apiKey: "<YOUR-API-KEY>",
-fabric: "<YOUR-FABRIC>",
+let connection = connect({
+    host: "<YOUR-PHOTONIQ>.photoniq.macrometa.io",
+    customerId: "<YOUR-CUSTOMER-ID>",
+    apiKey: "<YOUR-API-KEY>",
+    fabric: "<YOUR-FABRIC>",
 }, globalListener);
 ```
 
