@@ -35,3 +35,13 @@ export function connect(config: Config, globalListener: (type: EDSEvent) => void
     return connection;
 }
 
+
+/**
+ * Retrieve version of the PhotonIQ EDS SDK.
+ *
+ * @return `string` version of the SDK.
+ * @module connection
+ */
+export function version(): string {
+    return "0.0.6";
+}
