@@ -27,7 +27,6 @@ export class SseConnection implements InternalConnection {
      */
     private retrieveInitialDataAgain: boolean;
     
-    private readonly FAILED_TO_PARSE_QUERY: string = "Failed to parse query: ";
     private readonly DEFAULT_FLUSH_TIMEOUT_MS: number = 20;
 
     private openListener?: (type: any) => void;
