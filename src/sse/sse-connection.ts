@@ -60,6 +60,9 @@ export class SseConnection implements InternalConnection {
     }
 
     public flush(): void {
+        if (this.status === ConnectionStatus.Closed) {
+            this.status = ConnectionStatus.Connecting;
+        }
         let self = this;
         if (!this.retrieveTimeout) {
             this.retrieveTimeout = setTimeout(function() {
@@ -106,7 +109,9 @@ export class SseConnection implements InternalConnection {
      * Connect to SSE server
      */
      public connect(): void {
-         if (this.eventSource) throw Error("SSE connection already opened");
+         if (this.status === ConnectionStatus.Connecting || this.status === ConnectionStatus.Open) {
+             throw Error("SSE connection already opened or connecting");
+         }
          this.flush();
      }
 
@@ -122,10 +127,9 @@ export class SseConnection implements InternalConnection {
              }
          };
          let self = this;
-         if (!this.eventSource) {
-             this.openListener?.("SSE connection opened");
-         } else {
+         if (this.eventSource) {
              this.eventSource.disconnect();
+             this.eventSource = undefined;
          }
          this.eventSource = new EventSource(this.url, this.headers);
          this.eventSource.onOpen((event) => {
@@ -151,8 +155,10 @@ export class SseConnection implements InternalConnection {
                              }
                          }
                          if (!queries.length) {
-                             self.eventSource?.disconnect();
-                             self.eventSource = undefined;
+                             if (self.eventSource) {
+                                 self.eventSource.disconnect();
+                                 self.eventSource = undefined;
+                             }
                              callback();
                          }
                      } catch (e) {
@@ -161,9 +167,6 @@ export class SseConnection implements InternalConnection {
                  }
              });
          });
-         if (this.status === ConnectionStatus.Closed) {
-             this.status = ConnectionStatus.Connecting;
-         }
          this.eventSource.connect(data);
      }
 
@@ -175,10 +178,9 @@ export class SseConnection implements InternalConnection {
          if (!queries.length) {
              return;
          }
-         if (!this.eventSource) {
-             this.openListener?.("SSE connection opened");
-         } else {
+         if (this.eventSource) {
              this.eventSource.disconnect();
+             this.eventSource = undefined;
          }
          let compress = filters
              .filter(f => f.once !== TRUE)
@@ -214,15 +216,9 @@ export class SseConnection implements InternalConnection {
          this.eventSource.onClose((event: any) => {
              if (this.status === ConnectionStatus.Closing) {
                  this.status = ConnectionStatus.Closed;
-                 self.closeListener?.(event);
-             } else {
-                 self.errorListener?.(event, false);
-                 self.closeListener?.(event);
              }
+             self.closeListener?.(event);
          });
-         if (this.status === ConnectionStatus.Closed) {
-             this.status = ConnectionStatus.Connecting;
-         }
          this.eventSource.connect(data);
      }
      
@@ -251,13 +247,18 @@ export class SseConnection implements InternalConnection {
      }
      
      public disconnect(): boolean {
-         this.retrieveTimeout = undefined;
+         if (this.retrieveTimeout) {
+             clearTimeout(this.retrieveTimeout);
+             this.retrieveTimeout = undefined;
+         }
          if (this.eventSource) {
              this.status = ConnectionStatus.Closing;
-             this.eventSource?.disconnect();
+             this.eventSource.disconnect();
              this.eventSource = undefined;
+             this.status = ConnectionStatus.Closed;
              return true;
          }
+         this.status = ConnectionStatus.Closed;
          return false;
      }
      

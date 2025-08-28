@@ -1,4 +1,4 @@
-import { ConnectionProperties } from "../types";
+import {ConnectionProperties, ConnectionStatus} from "../types";
 
 export class EventSource {
 
@@ -11,11 +11,13 @@ export class EventSource {
     private messageListener?: (event: any) => void;
     private errorListener?: (event: any) => void;
     private closeListener?: (event: any) => void;
-    private disconnected: boolean = false;
+    private status: ConnectionStatus;
+    private abortController?: AbortController;
     
     constructor(url: string, headers: HeadersInit) {
         this.url = url;
         this.headers = headers;
+        this.status = ConnectionStatus.Closed;
     }
     
     public onOpen(listener: (event: any) => void) {
@@ -39,77 +41,136 @@ export class EventSource {
     }
     
     public async connect(data: any) {
+        if (this.status != ConnectionStatus.Closed) {
+            return;
+        }
+        this.status = ConnectionStatus.Connecting;
+        let self = this;
         try {
+            this.abortController = new AbortController();
             const response = await fetch(this.url, {
                 method: 'POST', 
                 headers: this.headers,
                 body: JSON.stringify(data),
+                signal: this.abortController.signal
             });
     
             if (!response.ok) {
-                this.errorListener?.(response);
-            } else {
-                this.openListener?.(response);
+                this.errorListener?.({
+                    type: 'error',
+                    error: `HTTP ${response.status}: ${response.statusText}`,
+                    response
+                });
+                return;
             }
-    
+            if (self.status == ConnectionStatus.Closed) {
+                return;
+            }
+            this.status = ConnectionStatus.Open;
+            this.openListener?.({ type: 'open', response });
+
             const stream: ReadableStream<Uint8Array> = response.body!;
+            await this.readStream(stream);
             
-            let buffer = "";
-            this.reader = stream.getReader();
-            if (this.disconnected) {
-                this.disconnect();
+        } catch (error) {
+            if (self.status !== ConnectionStatus.Closed) {
+                this.errorListener?.({ type: 'error', error });
             }
+        } finally {
+            const wasOpen = this.status == ConnectionStatus.Open;
+            this.cleanup();
+            if (wasOpen) {
+                this.closeListener?.({ type: 'close', reason: 'Connection ended' });
+            }
+        }
+    }
+
+    private async readStream(stream: ReadableStream<Uint8Array>) {
+        let buffer = "";
+        this.reader = stream.getReader();
+        try {
             let streamResult: ReadableStreamReadResult<Uint8Array>;
-            while (!(streamResult = await this.reader.read()).done) {
-                let result = new TextDecoder('utf-8').decode(streamResult.value);
+            while (!(streamResult = await this.reader.read()).done && this.status == ConnectionStatus.Open) {
+                const result = new TextDecoder('utf-8').decode(streamResult.value);
                 buffer += result;
+
                 let endIndex;
-                while ((endIndex = buffer.indexOf("\n\n")) > -1 ) {
-                    //message complete
-                    let propertyChanged = false;
-                    let message = buffer.substring(0, endIndex);
+                while ((endIndex = buffer.indexOf("\n\n")) > -1) {
+                    const message = buffer.substring(0, endIndex);
                     buffer = buffer.substring(endIndex + 2);
 
-                    if (message.startsWith(":")) {
-                        const lines = result.split("\n");
-                        for (const line of lines) {
-                            const keyValue = line.split(":");
-                            if (keyValue.length == 3) {
-                                this.properties[keyValue[1].trim()] = keyValue[2].trim();
-                                propertyChanged = true;
-                            }
-                        }
-                    } else {
-                        let valueIndex = message.indexOf(":");
-                        if (valueIndex > -1) {
-                            let key = message.substring(0, valueIndex).trim();
-                            if (message[valueIndex + 1] === " ") valueIndex++;
-                            valueIndex++;
-                            let value = message.substring(valueIndex).replace(/\ndata: ?/g, "\n");
-                            switch (key) {
-                                case "data":
-                                    this.messageListener?.(value);
-                                    break;
-                                default:
-                                    console.warn(`Not supported message with type of message ${key}: ${value}`);
-                            }
-                        }
-                    }
-
-                    if (propertyChanged) {
-                        this.propertiesListener?.(this.properties);
-                    }
+                    this.processMessage(message);
                 }
             }
-            this.closeListener?.("Connection closed");
         } catch (error) {
-            this.errorListener?.(error);
+            if (this.status == ConnectionStatus.Open) {
+                throw error;
+            }
+        }
+    }
+
+    private processMessage(message: string) {
+        let propertyChanged = false;
+
+        if (message.startsWith(":")) {
+            const lines = message.split("\n");
+            for (const line of lines) {
+                const keyValue = line.split(":");
+                if (keyValue.length >= 3) {
+                    const key = keyValue[1].trim();
+                    const value = keyValue.slice(2).join(":").trim();
+                    this.properties[key] = value;
+                    propertyChanged = true;
+                }
+            }
+        } else {
+            const colonIndex = message.indexOf(":");
+            if (colonIndex > -1) {
+                const key = message.substring(0, colonIndex).trim();
+                let valueStart = colonIndex + 1;
+                if (message[valueStart] === " ") {
+                    valueStart++;
+                }
+                const value = message.substring(valueStart).replace(/\ndata: ?/g, "\n");
+
+                switch (key) {
+                    case "data":
+                        this.messageListener?.(value);
+                        break;
+                    case "event":
+                        // Handle event type if needed
+                        break;
+                    case "id":
+                        // Handle event ID if needed
+                        break;
+                    case "retry":
+                        // Handle retry interval if needed
+                        break;
+                    default:
+                        console.warn(`Unsupported SSE field: ${key}: ${value}`);
+                }
+            }
+        }
+
+        if (propertyChanged) {
+            this.propertiesListener?.(this.properties);
         }
     }
 
     public disconnect() {
-        this.disconnected = true;
-        this.reader?.cancel();
+        this.abortController?.abort();
+        this.cleanup();
+    }
+
+    private cleanup() {
+        this.status = ConnectionStatus.Closed;
+        if (this.reader) {
+            this.reader.cancel().catch(() => {
+                // Ignore cancellation errors
+            });
+            this.reader = undefined;
+        }
+        this.abortController = undefined;
     }
 
     public getProperty(name: string): string | undefined {
@@ -120,4 +181,7 @@ export class EventSource {
         return this.properties;
     }
 
+    public isConnected(): boolean {
+        return this.status == ConnectionStatus.Open;
+    }
 }
