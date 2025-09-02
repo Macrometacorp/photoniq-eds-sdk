@@ -43,5 +43,5 @@ export function connect(config: Config, globalListener: (type: EDSEvent) => void
  * @module connection
  */
 export function version(): string {
-    return "0.0.6";
+    return "0.0.7";
 }
